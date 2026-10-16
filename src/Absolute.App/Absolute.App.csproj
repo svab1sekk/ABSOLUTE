@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AssemblyName>ABSOLUTE</AssemblyName>
+    <RootNamespace>Absolute.App</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets/absolute.ico</ApplicationIcon>
+    <Version>0.1.0</Version>
+  </PropertyGroup>
+  <ItemGroup><ProjectReference Include="../Absolute.Core/Absolute.Core.csproj" /></ItemGroup>
+  <ItemGroup><Resource Include="Assets/logo.png" Condition="Exists('Assets/logo.png')" /></ItemGroup>
+</Project>

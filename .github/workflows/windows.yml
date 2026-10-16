@@ -1,0 +1,38 @@
+name: Windows
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        runtime: [win-x64, win-arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Test and publish
+        shell: pwsh
+        run: ./scripts/publish.ps1 -Runtime ${{ matrix.runtime }}
+      - name: Windows UI and hardware smoke check
+        if: matrix.runtime == 'win-x64'
+        shell: pwsh
+        run: |
+          $app = Start-Process ./artifacts/ABSOLUTE-win-x64/ABSOLUTE.exe -ArgumentList '--smoke-test', './artifacts/smoke' -PassThru
+          if (-not $app.WaitForExit(90000)) { $app.Kill(); throw 'Smoke check timed out.' }
+          if ($app.ExitCode -ne 0) { throw 'Smoke check failed. See report.json.' }
+          Get-Content ./artifacts/smoke/report.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ABSOLUTE-${{ matrix.runtime }}
+          path: artifacts/ABSOLUTE-${{ matrix.runtime }}.zip
+      - uses: actions/upload-artifact@v4
+        if: always() && matrix.runtime == 'win-x64'
+        with:
+          name: Windows-smoke-results
+          path: artifacts/smoke/
