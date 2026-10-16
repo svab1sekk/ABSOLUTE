@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - 'release/**'
 
 permissions:
   contents: write
@@ -25,8 +27,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ github.ref_name }}
         run: |
+          RELEASE_TAG="${GITHUB_REF_NAME#release/}"
           gh release create "$RELEASE_TAG" \
             package/ABSOLUTE-win-x64.zip \
             package/SHA256SUMS.txt \
