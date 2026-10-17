@@ -24,6 +24,7 @@ internal static class GraphicsDiscovery
     }
 
     public static bool IsHardware(AdapterDescription1 description)=>
+        description.VendorId!=0x1414&&
         (description.Flags&AdapterFlags.Software)==0&&
         !description.Description.Contains("Basic Render Driver",StringComparison.OrdinalIgnoreCase)&&
         !description.Description.Contains("Basic Display Adapter",StringComparison.OrdinalIgnoreCase)&&

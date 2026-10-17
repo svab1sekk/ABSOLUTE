@@ -33,8 +33,13 @@ internal static class GpuBenchmarkWindow
             try
             {
                 var pixels=host.Pixels();var width=Math.Max(1,pixels.Right-pixels.Left);var height=Math.Max(1,pixels.Bottom-pixels.Top);
-                var handle=host.Handle;
-                var result=await Task.Run(()=>threeD?Gpu3DWorkload.Measure(handle,progress,cancellation.Token):Measure(handle,width,height,progress,cancellation.Token),cancellation.Token);
+                var handle=host.Handle;var seconds=threeD?Gpu3DWorkload.Seconds:4.5;
+                var visibleProgress=new Progress<double>(fraction=>
+                {
+                    progress?.Report(fraction);
+                    title.Text=threeD&&fraction<=0?"GPU 3D · Warming up…":$"GPU {(threeD?"3D · Scene 1":"2D · Direct2D")} · {fraction:P0} · {fraction*seconds:0.0} / {seconds:0.#} s";
+                });
+                var result=await Task.Run(()=>threeD?Gpu3DWorkload.Measure(handle,visibleProgress,cancellation.Token):Measure(handle,width,height,visibleProgress,cancellation.Token),cancellation.Token);
                 completion.TrySetResult(result);
             }
             catch(OperationCanceledException){completion.TrySetCanceled(cancellation.Token);}

@@ -39,7 +39,7 @@ internal static class DriverService
                 if(matches.Length!=1||!int.TryParse(matches[0].Element("Value")?.Value,out var family))return new(part.Id,source,"NVIDIA could not match this model automatically",[],checkedAt);
                 var os=Environment.OSVersion.Version.Build>=22000?135:57;
                 var json=await GetAsync($"https://gfwsl.geforce.com/services_toolkit/services/com/nvidia/services/AjaxDriverService.php?func=DriverManualLookup&pfid={family}&osID={os}&dch=1&numberOfResults=10&languageCode=1033",cancellationToken);
-                var driver=installed.FirstOrDefault(d=>(d.Provider+" "+d.Manufacturer).Contains("NVIDIA",StringComparison.OrdinalIgnoreCase));
+                var driver=installed.FirstOrDefault(d=>d.Provider.Contains("NVIDIA",StringComparison.OrdinalIgnoreCase));
                 var packages=VendorDrivers.ReadNvidia(json,driver is null?null:VendorDrivers.NvidiaVersion(driver.Version));
                 return new(part.Id,source,packages.Count>0?"Checked NVIDIA catalog":"No matching Game Ready package returned",packages,checkedAt);
             }
@@ -68,7 +68,7 @@ internal static class DriverService
                 // Only a model-specific product response may advertise a direct GPU package.
                 if(model.Length>3&&pageText.Contains(model,StringComparison.OrdinalIgnoreCase))
                 {
-                    var current=installed.FirstOrDefault(d=>d.Category.Equals("DISPLAY",StringComparison.OrdinalIgnoreCase))?.Version;
+                    var current=installed.FirstOrDefault(d=>d.Category.Equals("DISPLAY",StringComparison.OrdinalIgnoreCase)&&!d.Provider.Equals("Microsoft",StringComparison.OrdinalIgnoreCase))?.Version;
                     var gpuPackages=VendorDrivers.ReadGpuPage(html,vendor,current);
                     if(gpuPackages.Count>0)return new(part.Id,source,"Checked "+vendor+" product downloads",gpuPackages,checkedAt);
                 }

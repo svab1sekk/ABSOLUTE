@@ -109,13 +109,16 @@ public partial class MainWindow
             var model=Text(part.Name,18,weight:FontWeights.SemiBold);model.MinHeight=50;
             var body=Stack(Columns((icon,-1),(Text(PartLabel(part),11,"#B49ACB"),1)),Space(18),model,Space(12));
             if(versions.Length==1&&part.Category is not ("Motherboard" or "Processor"))body.Children.Add(Text("Installed · "+(part.Name.Contains("NVIDIA",StringComparison.OrdinalIgnoreCase)?VendorDrivers.NvidiaVersion(versions[0]):versions[0]),12,"#A89AB4"));
+            if(result?.Packages.Count==1)body.Children.Add(Text("Latest · "+result.Packages[0].Version,12,"#BFA4D5"));
             if(part.Category=="Motherboard")body.Children.Add(Text("Chipset · LAN · Wi-Fi · Bluetooth",11,"#A89AB4"));
             var updates=result?.Packages.Count(p=>p.Comparison>0)??0;
-            var status=updates>0?"Update available":result?.Status??(driverChecking?"Checking manufacturer…":"Not checked yet");
+            var current=result?.Packages.Count>0&&result.Packages.All(p=>p.Comparison is <=0);
+            var status=updates>0?"Update available":current?"Up to date":result?.Status??(driverChecking?"Checking manufacturer…":"Not checked yet");
             var detail=Text(status,12,updates>0?"#D0ABE9":"#AFA0BC");detail.MinHeight=48;detail.Margin=new Thickness(0,12,0,18);body.Children.Add(detail);
             if(result?.Packages.Count>0)
             {
-                var packages=B(updates>0?"View updates":"View packages",()=>ShowDriverPackages(part,result),updates>0);packages.HorizontalAlignment=HorizontalAlignment.Left;packages.Margin=new Thickness(0,0,0,10);body.Children.Add(packages);
+                var direct=result.Packages.Count==1&&!current;
+                var packages=B(direct?"Download  ↗":updates>0?"View updates":"View packages",()=>{if(direct)OpenUrl(result.Packages[0].DownloadUrl);else ShowDriverPackages(part,result);},updates>0);packages.HorizontalAlignment=HorizontalAlignment.Left;packages.Margin=new Thickness(0,0,0,10);body.Children.Add(packages);
             }
             var support=B("Manufacturer  ↗",()=>OpenUrl(result?.Source??DriverService.SupportUrl(part)));support.HorizontalAlignment=HorizontalAlignment.Left;body.Children.Add(support);
             return Card(body,new Thickness(20));
