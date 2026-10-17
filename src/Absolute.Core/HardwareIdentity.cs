@@ -45,6 +45,7 @@ public static class HardwareIdentity
         var clean = HardwareNames.Clean(model);
         if (string.IsNullOrWhiteSpace(clean) || Regex.IsMatch(clean, @"generic|pnp monitor|unknown|unavailable", RegexOptions.IgnoreCase)) return "";
         if (Regex.Replace(clean, "[^a-zA-Z0-9]", "").Equals("P25SPLUS", StringComparison.OrdinalIgnoreCase)) return "TITAN ARMY P25S Plus";
+        if (Regex.Replace(clean, "[^a-zA-Z0-9]", "").Equals("P2510SPLUS", StringComparison.OrdinalIgnoreCase)) return "TITAN ARMY P2510S Plus";
         var brand = manufacturer.ToUpperInvariant() switch
         {
             "DEL" => "Dell", "SAM" => "Samsung", "GSM" or "GSE" => "LG", "ACI" or "AUS" => "ASUS", "BNQ" => "BenQ", "ACR" => "Acer", "AOC" => "AOC", "MSI" => "MSI", "IVM" => "iiyama", "LEN" => "Lenovo", "HWP" or "HPN" => "HP", "PHL" => "Philips", "VSC" => "ViewSonic", "GBT" => "Gigabyte", _ => ""

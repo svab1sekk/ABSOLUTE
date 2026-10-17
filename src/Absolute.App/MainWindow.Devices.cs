@@ -109,7 +109,7 @@ public partial class MainWindow
             if(part.Category=="Motherboard")body.Children.Add(Text("Chipset · LAN · Wi-Fi · Bluetooth",11,"#A89AB4"));
             var updates=result?.Packages.Count(p=>p.Comparison>0)??0;
             var current=result?.Packages.Count>0&&result.Packages.All(p=>p.Comparison is <=0);
-            var status=updates>0?"Update available":current?"Up to date":part.Category=="Processor"?"CPU support is included in chipset packages":driverChecking?"Checking…":"";
+            var status=updates>0?"Update available":current?"Up to date":part.Category=="Processor"?"CPU support is included in chipset packages":driverChecking?"Checking…":result?.Source.Length==0?"Driver link unavailable":"";
             var detail=Text(status,12,updates>0?"#D0ABE9":"#AFA0BC");detail.MinHeight=48;detail.Margin=new Thickness(0,12,0,18);body.Children.Add(detail);
             if(result?.Packages.Count>0&&(!current||part.Category=="Motherboard"))
             {

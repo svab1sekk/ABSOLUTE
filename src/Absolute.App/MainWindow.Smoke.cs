@@ -17,7 +17,7 @@ public partial class MainWindow
         var success=false;var errors=new List<string>();var rendered=new List<string>();
         string gpuCheck="Not run";ComponentBenchmarkResult? gpuResult=null;
         var gameProfileCheck="Not run";var gpu3DCheck="Not run";ComponentBenchmarkResult? gpu3DResult=null;var shaderCheck="Not run";
-        VendorDriverResult? monitorLinkCheck=null;bool? closeHover=null;
+        VendorDriverResult? monitorLinkCheck=null;VendorDriverResult? alternateMonitorLinkCheck=null;bool? closeHover=null;
         try
         {
             Directory.CreateDirectory(output);
@@ -27,8 +27,10 @@ public partial class MainWindow
             try{await temperatures.FirstReading.WaitAsync(TimeSpan.FromSeconds(110));}catch(TimeoutException){errors.Add("Built-in sensor helper did not respond.");}
             if(temperatures.Snapshot?.Ready!=true)errors.Add("Built-in sensor initialization failed: "+temperatures.Status);
             var monitorLookup=Services.DriverService.SearchAsync(new("Monitor","TITAN ARMY P25S Plus",[],"monitor-link-check"),[],CancellationToken.None);
+            var alternateMonitorLookup=Services.DriverService.SearchAsync(new("Monitor","TITAN ARMY P2510S Plus",[],"alternate-monitor-link-check"),[],CancellationToken.None);
             try{await Task.WhenAll(Artwork.WarmAsync(Catalogs.Games),Artwork.WarmProjectsAsync()).WaitAsync(TimeSpan.FromSeconds(95));}catch(TimeoutException){/* Publisher results are reported separately; offline access must not prevent rendering. */}
             monitorLinkCheck=await monitorLookup;
+            alternateMonitorLinkCheck=await alternateMonitorLookup;
             if(hardware is null||hardware.Memory==0)errors.Add("No physical memory reported.");
             if(snapshot is null||snapshot.MemoryTotal==0)errors.Add("Live memory readings unavailable.");
             if(!powerPlans.Any(p=>p.Active))errors.Add("No active Windows power plan discovered.");
@@ -95,7 +97,7 @@ public partial class MainWindow
             var closeCenter=CloseButton.PointToScreen(new Point(CloseButton.ActualWidth/2,CloseButton.ActualHeight/2));
             if(SetCursorPos((int)closeCenter.X,(int)closeCenter.Y))
             {
-                await Task.Delay(150);closeHover=CloseButton.IsMouseOver;
+                Activate();System.Windows.Input.Mouse.Synchronize();await Task.Delay(150);closeHover=CloseButton.IsMouseOver;
                 Capture("compact-close-hover.png");SetCursorPos(1,1);
             }
             void Capture(string filename)
@@ -123,6 +125,7 @@ public partial class MainWindow
                     GameProfileCheck=gameProfileCheck,
                     GameCatalogCount=Catalogs.Games.Count,PlaybookCatalogCount=Catalogs.Playbooks.Count,CloseButtonHovered=closeHover,
                     ExactMonitorLinkCheck=new{Model="TITAN ARMY P25S Plus",Url=monitorLinkCheck?.Source,Status=monitorLinkCheck?.Status},
+                    AlternateMonitorLinkCheck=new{Model="TITAN ARMY P2510S Plus",Url=alternateMonitorLinkCheck?.Source,Status=alternateMonitorLinkCheck?.Status},
                     OnlineDriverCheck="Manufacturer catalogs; comparison requires matched physical hardware. No Windows Update driver API is used.",
                     TemperatureMonitor=temperatures.Status,BundledSensorDriverVerified=Services.TemperatureHost.BundledDriverIsValid(),
                     ArtworkSummary=new

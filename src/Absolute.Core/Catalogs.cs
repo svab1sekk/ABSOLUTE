@@ -123,7 +123,7 @@ public static class Catalogs
         new("wreckfest", "Wreckfest", ["Wreckfest_x64"], "#9476CB", 101, SteamAppId: 228380),
         new("rocketbot", "REMATCH", ["Rematch-Win64-Shipping"], "#9476CB", 102, SteamAppId: 2138720),
         new("fishingplanet", "Fishing Planet", ["FishingPlanet"], "#9476CB", 103, SteamAppId: 380600),
-        new("freestyle", "3on3 FreeStyle: Rebound", ["freestyle2"], "#9476CB", 104, SteamAppId: 1292630),
+        new("freestyle", "3on3 FreeStyle: Rebound", [], "#9476CB", 104, SteamAppId: 1292630),
         new("fallguys", "Fall Guys", ["FallGuys_client"], "#9476CB", 105, SteamAppId: 1097150),
         new("partyanimals", "Party Animals", ["PartyAnimals"], "#9476CB", 106, SteamAppId: 1260320),
         new("stumbleguys", "Stumble Guys", ["Stumble Guys"], "#9476CB", 107, SteamAppId: 1677740),

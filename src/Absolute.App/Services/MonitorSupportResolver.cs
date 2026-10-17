@@ -27,12 +27,12 @@ internal static class MonitorSupportResolver
                 var sitemap=await TryFetch("/sitemap.xml");
                 if(sitemap.Length>0)
                 {
-                    var links=MonitorProductLinks.SitemapLinks(sitemap,publisher);
+                    var links=ReadSitemap(sitemap);
                     candidates.AddRange(links.Where(link=>MonitorProductLinks.MatchesModel(new Uri(link).AbsolutePath,model)));
                     foreach(var child in links.Where(link=>new Uri(link).AbsolutePath.Contains("sitemap",StringComparison.OrdinalIgnoreCase)&&link.Contains("product",StringComparison.OrdinalIgnoreCase)).Take(4))
                     {
                         var xml=await TryFetch(child);if(xml.Length==0)continue;
-                        candidates.AddRange(MonitorProductLinks.SitemapLinks(xml,publisher).Where(link=>MonitorProductLinks.MatchesModel(new Uri(link).AbsolutePath,model)));
+                        candidates.AddRange(ReadSitemap(xml).Where(link=>MonitorProductLinks.MatchesModel(new Uri(link).AbsolutePath,model)));
                     }
                 }
             }
@@ -54,6 +54,11 @@ internal static class MonitorSupportResolver
         {
             try{return await fetch(new Uri(publisher,path).ToString(),budget.Token);}
             catch(HttpRequestException){return "";}
+        }
+        IReadOnlyList<string> ReadSitemap(string xml)
+        {
+            try{return MonitorProductLinks.SitemapLinks(xml,publisher);}
+            catch(System.Xml.XmlException){return [];}
         }
     }
 }

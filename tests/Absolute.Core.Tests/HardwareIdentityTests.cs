@@ -24,11 +24,13 @@ public sealed class HardwareIdentityTests
         Assert.Equal("24 GB DDR4",part.Name);Assert.DoesNotContain(part.Details,d=>d.Key=="Speed");
     }
 
-    [Fact]
-    public void EdidIdentifiesTheMonitorAndNativeMode()
+    [Theory]
+    [InlineData("P25S Plus","TITAN ARMY P25S Plus")]
+    [InlineData("P2510S Plus","TITAN ARMY P2510S Plus")]
+    public void EdidIdentifiesTheMonitorAndNativeMode(string reported,string expected)
     {
-        var bytes=Edid("P25S Plus");var monitor=HardwareIdentity.ReadEdid(bytes);
-        Assert.NotNull(monitor);Assert.Equal("TITAN ARMY P25S Plus",monitor.Name);
+        var bytes=Edid(reported);var monitor=HardwareIdentity.ReadEdid(bytes);
+        Assert.NotNull(monitor);Assert.Equal(expected,monitor.Name);
         Assert.Equal(1920,monitor.Width);Assert.Equal(1080,monitor.Height);Assert.InRange(monitor.RefreshRate,59.9,60.1);
         bytes[20]^=1;Assert.Null(HardwareIdentity.ReadEdid(bytes));
     }

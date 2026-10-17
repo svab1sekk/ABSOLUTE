@@ -161,7 +161,7 @@ internal static class Artwork
         return FindOpenGraphImage(html);
     }
 
-    private static bool AllowedHost(string host)=>new[]{"steamstatic.com","steamusercontent.com","epicgames.com","unrealengine.com","fortnite.com","playvalorant.com","rgpub.io","riotgames.com","leagueoflegends.com","escapefromtarkov.com","osu.ppy.sh","assets.ppy.sh","contentstack.io","raw.githubusercontent.com","github.com","githubusercontent.com","fsosx.com","ameliorated.io","amelabs.net","blizzard.com","battle.net","playruneterra.com","tarkov.com","bnetcmsus-a.akamaihd.net","blz-contentstack-images.akamaized.net","blz-contentstack.com"}.Any(allowed=>host.Equals(allowed,StringComparison.OrdinalIgnoreCase)||host.EndsWith("."+allowed,StringComparison.OrdinalIgnoreCase));
+    private static bool AllowedHost(string host)=>new[]{"steamstatic.com","steamusercontent.com","epicgames.com","unrealengine.com","fortnite.com","playvalorant.com","rgpub.io","riotgames.com","leagueoflegends.com","escapefromtarkov.com","osu.ppy.sh","assets.ppy.sh","contentstack.io","raw.githubusercontent.com","github.com","githubusercontent.com","fsosx.com","ameliorated.io","amelabs.net","blizzard.com","battle.net","playruneterra.com","tarkov.com","bnetcmsus-a.akamaihd.net","blz-contentstack-images.akamaized.net","blz-contentstack.com","d39zum0jwvcigt.cloudfront.net"}.Any(allowed=>host.Equals(allowed,StringComparison.OrdinalIgnoreCase)||host.EndsWith("."+allowed,StringComparison.OrdinalIgnoreCase));
 
     private static string? FindOpenGraphImage(string html)
     {
