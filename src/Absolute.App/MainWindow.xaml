@@ -54,7 +54,7 @@
     </ScrollViewer>
 
     <Grid Grid.ColumnSpan="2">
-      <TextBlock Text="ABSOLUTE" FontFamily="Bahnschrift, Segoe UI" FontSize="12" FontWeight="SemiBold"
+      <TextBlock Text="ABSOLUTE" FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold"
                  Foreground="#C3B1D6" Margin="16,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" />
       <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" shell:WindowChrome.IsHitTestVisibleInChrome="True">
         <Button x:Name="MinimizeButton" Style="{StaticResource Caption}" ToolTip="Minimize"

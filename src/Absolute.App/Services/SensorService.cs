@@ -45,7 +45,7 @@ internal sealed class SensorService : IDisposable
         var gpuTemperature=Temperature("gpu");
         if(gpuTemperature is null&&getHandle is not null&&getTemperature is not null&&getHandle(0,out var handle)==0&&getTemperature(handle,0,out var temperature)==0&&temperature is >0 and <150)gpuTemperature=temperature;
         if(builtIn is not null)readings.AddRange(builtIn.Readings);
-        return new(builtIn?.Cpu??Temperature("cpu"),builtIn?.Gpu??gpuTemperature,GpuLoad(),readings);
+        return new(builtIn?.Cpu??Temperature("cpu"),builtIn?.Gpu??gpuTemperature,GpuLoad()??readings.Where(r=>r.Type.Equals("Load",StringComparison.OrdinalIgnoreCase)&&r.Hardware.Contains("gpu",StringComparison.OrdinalIgnoreCase)&&r.Name.Contains("Core",StringComparison.OrdinalIgnoreCase)).Select(r=>(double?)Math.Clamp(r.Value,0,100)).FirstOrDefault(),readings);
     }
 
     private double? GpuLoad()
@@ -56,7 +56,7 @@ internal sealed class SensorService : IDisposable
             {
                 foreach(var counter in gpuCounters)counter.Dispose();gpuCounters.Clear();
                 if(PerformanceCounterCategory.Exists("GPU Engine"))
-                    foreach(var name in new PerformanceCounterCategory("GPU Engine").GetInstanceNames().Where(n=>n.EndsWith("engtype_3D",StringComparison.OrdinalIgnoreCase)))
+                    foreach(var name in new PerformanceCounterCategory("GPU Engine").GetInstanceNames().Where(n=>n.Contains("_engtype_",StringComparison.OrdinalIgnoreCase)))
                     {var counter=new PerformanceCounter("GPU Engine","Utilization Percentage",name,true);counter.NextValue();gpuCounters.Add(counter);}
                 nextGpuDiscovery=DateTimeOffset.UtcNow.AddSeconds(30);
                 return null;

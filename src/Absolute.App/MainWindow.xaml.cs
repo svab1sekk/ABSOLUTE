@@ -30,20 +30,19 @@ public partial class MainWindow : Window
     private HardwareInfo? hardware;
     private HardwareDiscoveryResult? inventory;
     private IReadOnlyList<DriverDevice> devices=[];
-    private DriverSearchResult? driverSearch;
     private SensorSnapshot sensorSnapshot=new(null,null,null,[]);
     private SystemSnapshot? snapshot;
-    private NetworkSample? network;
-    private DateTimeOffset networkTime;
     private Task inventoryTask=Task.CompletedTask,devicesTask=Task.CompletedTask;
     private CancellationTokenSource? driverCancellation,benchmarkCancellation;
     private bool sampling,detecting,closed,closingAllowed,closingInProgress,driverChecking,cpuHasInterval;
     private readonly List<string> benchmarkNotices=[];
+    private DateTimeOffset nextGameAttempt;
+    private string? editingGame;
     private string selectedPage="Home",gameQuery="",gameState="Waiting for a game",inventoryError="",devicesError="";
-    private TextBlock? cpuValue,memoryValue,memoryDetail,gpuValue,cpuTemperature,gpuTemperature,downloadValue,uploadValue,uptimeValue;
+    private TextBlock? cpuValue,memoryValue,memoryDetail,gpuValue,cpuTemperature,gpuTemperature;
     private TextBlock? driverHomeStatus;
-    private Controls.Sparkline? cpuChart;
-    private ProgressBar? memoryBar;
+    private Controls.Sparkline? cpuChart,gpuChart,memoryChart;
+    private readonly Queue<double> cpuHistory=new(),gpuHistory=new(),memoryHistory=new();
     private IEnumerable<GameDefinition> Games=>Catalogs.Games.Concat(preferences.CustomGames);
 
     public MainWindow()
@@ -58,7 +57,7 @@ public partial class MainWindow : Window
             System.Windows.Automation.AutomationProperties.SetName(item,name);item.Checked+=(_,_)=>Navigate(name);Navigation.Children.Add(item);
         }
         SettingsNav.Content=Icon("Settings",20);SettingsNav.Checked+=(_,_)=>Navigate("Settings");((RadioButton)Navigation.Children[0]).IsChecked=true;
-        if(!preferences.AnimateLogo||!SystemParameters.ClientAreaAnimation){IntroLayer.Visibility=Visibility.Collapsed;SidebarLogo.Opacity=1;}
+        driverMonitor.Tick+=async(_,_)=>await Safe(RunDriverCheckAsync);
         toastTimer.Tick+=(_,_)=>{Toast.Visibility=Visibility.Collapsed;toastTimer.Stop();};
         monitor.Tick+=async(_,_)=>await SampleAsync();gameMonitor.Tick+=async(_,_)=>await DetectGameAsync();
         ContentRendered+=async(_,_)=>
@@ -71,9 +70,9 @@ public partial class MainWindow : Window
                 var args=Environment.GetCommandLineArgs();var index=Array.IndexOf(args,"--smoke-test");
                 await RunSmokeCheckAsync(index+1<args.Length?args[index+1]:"smoke-results",firstFrame);
             }
-            else{_=StartDriverCheckAsync();if(preferences.TemperatureMonitoring)_=StartTemperatureMonitorAsync();}
+            else{driverMonitor.Start();_=StartDriverCheckAsync();if(preferences.TemperatureMonitoring)_=StartTemperatureMonitorAsync();}
         };
-        Closing+=OnClosing;Closed+=(_,_)=>{closed=true;monitor.Stop();gameMonitor.Stop();toastTimer.Stop();driverCancellation?.Cancel();driverDownloadCancellation?.Cancel();benchmarkCancellation?.Cancel();temperatures.Dispose();};
+        Closing+=OnClosing;Closed+=(_,_)=>{closed=true;driverMonitor.Stop();monitor.Stop();gameMonitor.Stop();toastTimer.Stop();driverCancellation?.Cancel();benchmarkCancellation?.Cancel();temperatures.Dispose();};
     }
 
     private async Task InitializeAsync()
@@ -86,8 +85,8 @@ public partial class MainWindow : Window
         });
         if(!smoke)
         {
-            try{await gamePresets.RestoreAsync();if(preferences.AutoGamePresets)gameMonitor.Start();}
-            catch(Exception error){preferences.AutoGamePresets=false;store.Save(preferences);gameState="Profile recovery required";Notify(error.Message);}
+            try{await gamePresets.RestoreAsync();gameMonitor.Start();}
+            catch(Exception error){gameState="Profile recovery required";Notify(error.Message);nextGameAttempt=DateTimeOffset.UtcNow.AddSeconds(30);gameMonitor.Start();}
         }
         if(!closed&&preferences.LiveMonitoring)monitor.Start();
     }
@@ -127,74 +126,74 @@ public partial class MainWindow : Window
         if(sampling||closed)return;sampling=true;
         try
         {
-            var next=await Task.Run(system.Sample);var nextNetwork=await Task.Run(WindowsSystemService.Network);
+            var next=await Task.Run(system.Sample);
             var nextSensors=await Task.Run(()=>sensors.Read(reprobe,preferences.TemperatureMonitoring?temperatures.Snapshot:null));if(closed)return;
             var hadSample=snapshot is not null;cpuHasInterval=hadSample;snapshot=next;sensorSnapshot=nextSensors;
             if(cpuValue is not null)cpuValue.Text=hadSample?$"{next.CpuPercent:F0}%":"—";
-            if(hadSample)cpuChart?.Add(next.CpuPercent);
+            if(hadSample){Remember(cpuHistory,next.CpuPercent);cpuChart?.Add(next.CpuPercent);}
             if(memoryValue is not null)memoryValue.Text=$"{GiB(next.MemoryUsed):F1} GB";
             if(memoryDetail is not null)memoryDetail.Text=$"of {GiB(next.MemoryTotal):F1} GB usable";
-            if(memoryBar is not null)memoryBar.Value=next.MemoryTotal>0?next.MemoryUsed*100d/next.MemoryTotal:0;
+            var memoryPercent=next.MemoryTotal>0?next.MemoryUsed*100d/next.MemoryTotal:0;
+            Remember(memoryHistory,memoryPercent);memoryChart?.Add(memoryPercent);
+            if(nextSensors.GpuLoad is double usage){Remember(gpuHistory,usage);gpuChart?.Add(usage);}
             if(gpuValue is not null)gpuValue.Text=nextSensors.GpuLoad is double gpu?$"{gpu:F0}%":"—";
             if(cpuTemperature is not null)cpuTemperature.Text=Temperature(nextSensors.CpuTemperature);
             if(gpuTemperature is not null)gpuTemperature.Text=Temperature(nextSensors.GpuTemperature);
             if(cpuTemperature is not null)cpuTemperature.ToolTip=temperatures.Status;
-            if(uptimeValue is not null)uptimeValue.Text=$"{(int)next.Uptime.TotalHours}h {next.Uptime.Minutes}m";
-            var now=DateTimeOffset.UtcNow;
-            if(network is not null&&nextNetwork is not null&&network.Adapter==nextNetwork.Adapter)
-            {
-                var seconds=Math.Max(.1,(now-networkTime).TotalSeconds);
-                if(downloadValue is not null)downloadValue.Text=Rate(Math.Max(0,nextNetwork.Received-network.Received)/seconds);
-                if(uploadValue is not null)uploadValue.Text=Rate(Math.Max(0,nextNetwork.Sent-network.Sent)/seconds);
-            }
-            network=nextNetwork;networkTime=now;
+
         }
         catch(Exception error){if(!closed)Notify(error.Message);}
         finally{sampling=false;}
     }
     private async Task DetectGameAsync()
     {
-        if(detecting||closed||closingInProgress)return;detecting=true;
+        if(detecting||closed||closingInProgress||DateTimeOffset.UtcNow<nextGameAttempt)return;detecting=true;
         try
         {
-            if(!preferences.AutoGamePresets){if(gamePresets.ActiveGame is not null)await gamePresets.RestoreAsync();return;}
             var candidates=Games.ToArray();var selected=preferences.SelectedGame;
             var found=await Task.Run(()=>GamePresetService.Detect(candidates,selected));
-            if(closed||closingInProgress||!preferences.AutoGamePresets)return;
+            if(closed||closingInProgress)return;
             var old=gamePresets.ActiveGame;
             if(found is null){await gamePresets.RestoreAsync();gameState="Waiting for a game";}
             else gameState=await gamePresets.ApplyAsync(found);
             if(old!=gamePresets.ActiveGame)RefreshPage("Presets","Home");
         }
-        catch(Exception error){gameState=error.Message;preferences.AutoGamePresets=false;gameMonitor.Stop();store.Save(preferences);if(!closed){Notify(error.Message);RefreshPage("Presets");}}
+        catch(Exception error){gameState=error.Message;nextGameAttempt=DateTimeOffset.UtcNow.AddSeconds(30);if(!closed){Notify(error.Message);RefreshPage("Presets");}}
         finally{detecting=false;}
     }
     private async void OnClosing(object? sender,CancelEventArgs args)
     {
         if(closingAllowed)return;args.Cancel=true;if(closingInProgress)return;closingInProgress=true;
-        monitor.Stop();gameMonitor.Stop();driverCancellation?.Cancel();driverDownloadCancellation?.Cancel();benchmarkCancellation?.Cancel();
+        monitor.Stop();gameMonitor.Stop();driverCancellation?.Cancel();benchmarkCancellation?.Cancel();
         await Safe(gamePresets.RestoreAsync);closingAllowed=true;Close();
     }
-    private Task AnimateIntroAsync()
+    private bool introPlayed;
+    private int introRenderedFrames;
+    private async Task AnimateIntroAsync()
     {
-        if(IntroLayer.Visibility!=Visibility.Visible)return Task.CompletedTask;
+        await Dispatcher.Yield(DispatcherPriority.Render);
         var completion=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var target=SidebarLogo.TranslatePoint(new Point(SidebarLogo.ActualWidth/2,SidebarLogo.ActualHeight/2),this);
         var from=IntroLogo.TranslatePoint(new Point(48,48),this);
-        var duration=TimeSpan.FromMilliseconds(450);var ease=new CubicEase{EasingMode=EasingMode.EaseInOut};
-        DoubleAnimation Move(double end)=>new(0,end,duration){BeginTime=TimeSpan.FromMilliseconds(210),EasingFunction=ease};
+        var duration=TimeSpan.FromMilliseconds(420);var ease=new CubicEase{EasingMode=EasingMode.EaseInOut};
+        DoubleAnimation Move(double end)=>new(0,end,duration){BeginTime=TimeSpan.FromMilliseconds(480),EasingFunction=ease};
         IntroTranslation.BeginAnimation(TranslateTransform.XProperty,Move(target.X-from.X));IntroTranslation.BeginAnimation(TranslateTransform.YProperty,Move(target.Y-from.Y));
-        var scale=new DoubleAnimation(1,78d/96,duration){BeginTime=TimeSpan.FromMilliseconds(210),EasingFunction=ease};
+        var scale=new DoubleAnimation(1,78d/96,duration){BeginTime=TimeSpan.FromMilliseconds(480),EasingFunction=ease};
         IntroScale.BeginAnimation(ScaleTransform.ScaleXProperty,scale);IntroScale.BeginAnimation(ScaleTransform.ScaleYProperty,scale);
-        IntroBackdrop.BeginAnimation(OpacityProperty,new DoubleAnimation(1,0,TimeSpan.FromMilliseconds(240)){BeginTime=TimeSpan.FromMilliseconds(160)});
-        var rotate=new DoubleAnimation(-160,360,TimeSpan.FromMilliseconds(660)){EasingFunction=new CubicEase{EasingMode=EasingMode.EaseOut}};
-        rotate.Completed+=(_,_)=>{SidebarLogo.Opacity=1;IntroLayer.Visibility=Visibility.Collapsed;completion.TrySetResult();};
-        IntroRotation.BeginAnimation(RotateTransform.AngleProperty,rotate);return completion.Task;
+        IntroBackdrop.BeginAnimation(OpacityProperty,new DoubleAnimation(1,0,TimeSpan.FromMilliseconds(360)){BeginTime=TimeSpan.FromMilliseconds(480)});
+        var rotate=new DoubleAnimation(0,360,TimeSpan.FromMilliseconds(480)){EasingFunction=new CubicEase{EasingMode=EasingMode.EaseInOut}};
+        IntroRotation.BeginAnimation(RotateTransform.AngleProperty,rotate);
+        void Rendered(object? sender,EventArgs args)=>introRenderedFrames++;
+        CompositionTarget.Rendering+=Rendered;
+        var finish=new DoubleAnimation(1,1,TimeSpan.FromMilliseconds(900));
+        finish.Completed+=(_,_)=>{SidebarLogo.Opacity=1;IntroLayer.Visibility=Visibility.Collapsed;introPlayed=true;completion.TrySetResult();};
+        IntroLogo.BeginAnimation(OpacityProperty,finish);
+        try{await completion.Task;}finally{CompositionTarget.Rendering-=Rendered;}
     }
 
     private void Navigate(string name)
     {
-        selectedPage=name;cpuValue=memoryValue=memoryDetail=gpuValue=cpuTemperature=gpuTemperature=downloadValue=uploadValue=uptimeValue=driverHomeStatus=null;cpuChart=null;memoryBar=null;
+        selectedPage=name;cpuValue=memoryValue=memoryDetail=gpuValue=cpuTemperature=gpuTemperature=driverHomeStatus=null;cpuChart=gpuChart=memoryChart=null;
         Page.Children.Clear();PageScroll.ScrollToTop();
         var title=Text(name,34,weight:FontWeights.SemiBold);title.Margin=new Thickness(0,0,0,26);Page.Children.Add(title);
         switch(name)
@@ -218,7 +217,7 @@ public partial class MainWindow : Window
     private bool Confirm(string title,string message)=>ConfirmDialog.Ask(this,title,message);
     private static double GiB(ulong bytes)=>bytes/1073741824d;
     private static string Temperature(double? value)=>value is double temperature?$"{temperature:F0} °C":"Temp unavailable";
-    private static string Rate(double bytes)=>bytes>=1048576?$"{bytes/1048576:F1} MB/s":$"{bytes/1024:F1} KB/s";
+    private static void Remember(Queue<double> history,double value){history.Enqueue(value);while(history.Count>50)history.Dequeue();}
     private static FrameworkElement Space(double height)=>new Border{Height=height};
     private void Section(string title){var text=Text(title,17,weight:FontWeights.SemiBold);text.Margin=new Thickness(0,10,0,14);Page.Children.Add(text);}
     private static Grid Info(string label,string value){var result=Columns((Text(label,12,"#A396AF"),.75),(Text(value,13),1));result.Margin=new Thickness(0,7,0,7);return result;}

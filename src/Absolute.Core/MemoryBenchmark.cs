@@ -7,7 +7,8 @@ public static class MemoryBenchmark
 {
     public static Task<BenchmarkResult> RunAsync(IProgress<double>? progress, CancellationToken cancellationToken) => Task.Run(() =>
     {
-        const int size = 32 * 1024 * 1024;
+        cancellationToken.ThrowIfCancellationRequested();
+        const int size = 256 * 1024 * 1024;
         var source = new byte[size];
         var destination = new byte[size];
         Random.Shared.NextBytes(source);

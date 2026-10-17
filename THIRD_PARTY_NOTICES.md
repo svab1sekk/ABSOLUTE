@@ -19,3 +19,5 @@ GPU PCI name data is derived from the PCI ID Project, copyright Martin Mares and
 The osu! image is loaded directly from ppy's official osu-resources repository at commit a3423ae5fa76223b648db1df31875a952b588d69: https://github.com/ppy/osu-resources . Assets retain their creators' rights.
 
 Vortice.Windows and SharpGen.Runtime use the MIT license. .NET and Microsoft runtime components retain their upstream notices included with the self-contained distribution. Other NuGet dependency licenses are available through each package's metadata.
+
+Playbook avatars are fetched from each project's own GitHub organization/profile or official website. Project names, logos and avatars belong to their respective owners. Catalog links identify the source projects; ABSOLUTE does not claim affiliation. No playbook scripts or modified OS images are bundled.

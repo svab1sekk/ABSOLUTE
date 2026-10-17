@@ -16,6 +16,8 @@ public sealed class PreferenceStore(string path)
             preferences.Benchmarks ??= [];
             preferences.CustomGames ??= [];
             preferences.ComponentBenchmarks ??= [];
+            preferences.GameProfiles ??= new();
+            preferences.BenchmarkRuns ??= [];
             return preferences;
         }
         catch (JsonException) { return new(); }

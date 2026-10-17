@@ -53,8 +53,6 @@ internal static class HardwareDiscovery
         catch(Exception ex) when(IsUnavailable(ex)){}
         if(!parts.Any(p=>p.Category=="Storage"))Read("Storage","SELECT Model,Size,PNPDeviceID FROM Win32_DiskDrive",x=>Part("Storage",S(x,"Model"),("Capacity",$"{U(x,"Size")/1073741824d:0.#} GB")) with{Id=S(x,"PNPDeviceID")});
         try{parts.AddRange(WindowsDeviceIdentity.ReadMonitors());}catch(Exception ex) when(IsUnavailable(ex)){unavailable.Add("Monitors");}
-        try{parts.AddRange(WindowsDeviceIdentity.ReadPeripherals());}catch(Exception ex) when(IsUnavailable(ex)){unavailable.Add("Peripherals");}
-        try{parts.AddRange(WindowsDeviceIdentity.ReadAudio());}catch(Exception ex) when(IsUnavailable(ex)){unavailable.Add("Audio");}
         return new(parts,installed,unavailable);
     }
 

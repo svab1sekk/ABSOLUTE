@@ -1,12 +1,13 @@
-# ABSOLUTE 0.3.0 Preview
+# ABSOLUTE 0.4.0 Preview
 
-- Drivers redesigned as cards for CPU, GPU, motherboard, keyboard, mouse and connected monitors. Removed the full device table, search/filter bar and device counter.
-- Applicable motherboard updates are grouped. Download matching Windows Update packages or open official manufacturer support for vendor packages.
-- PC reduced to the requested hardware: combined RAM, CPU cores/threads, GPU memory, motherboard BIOS and physical drives. Removed serials, revisions, architecture, driver versions, color counts, volumes and network adapters.
-- Active EDID monitor identification, TITAN ARMY P25S Plus naming, HID/bus product names and device-container deduplication. Generic peripheral entries are omitted.
-- Built-in LibreHardwareMonitor and the verified PawnIO sensor installer. Windows administrator permission is required for restricted CPU sensors; no separate monitor app is needed.
-- Playbooks now presents actual OS projects with descriptions and maker credits. Removed the artwork banners and ABSOLUTE settings profiles.
-- Presets now uses official publisher/Steam artwork and a larger faded selected-game header. Images load automatically and cache locally.
-- Home adds Game Mode, startup-app, storage-cleanup and Windows Update shortcuts.
+- Drivers: displays first, CPU/GPU/motherboard together. Removed input/audio devices and Windows Update driver integration. Manufacturer catalog checks show matched versions and direct vendor download links where available, with manufacturer support for catalogs that cannot be compared automatically.
+- PC: displays, core components and storage in separate groups. Combined RAM remains one card; audio, keyboard and mouse are removed.
+- Benchmark: real Direct3D 11 scene, CPU and larger RAM workloads, stage progress, and one expandable result per run with component grades and a combined workload score. Partial runs stay clearly labelled.
+- Presets: smaller artwork tiles open a per-game power-plan/priority editor. Detection is always automatic. Official artwork refreshes daily; Fortnite uses live season art and Riot games use current update articles.
+- Playbooks: 11 genuine OS projects, official project avatars, maker credits and three brief facts each.
+- Home: matching CPU, GPU and RAM graphs. Removed Ethernet/IP and machine panels; retained Quick access and Tools.
+- Standard title-bar font, seamless logo bridge, and a visible centered rotation that docks into the sidebar on every launch.
 
-Extract the entire ZIP and run **ABSOLUTE.exe**. Keep the included folders beside it. Windows may request administrator permission for temperature monitoring after the main window appears. Unsupported sensors remain unavailable. Driver offers come from Windows Update; OEM-only packages are available through manufacturer support links. OS projects open their official pages.
+Extract the entire ZIP and run **ABSOLUTE.exe**. Keep the included folders beside it. The temperature driver is bundled; Windows requests administrator permission for restricted sensors after the window appears. Unsupported hardware may not expose temperatures. Some manufacturer catalogs require opening their support page; no unverified driver is labelled current and nothing is installed automatically from Drivers. OS projects open their official pages.
+
+Benchmark grades use ABSOLUTE's documented workload targets, not third-party rankings or predicted game FPS. See the expanded result or README for the scale.

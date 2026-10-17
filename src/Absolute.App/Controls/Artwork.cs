@@ -19,10 +19,10 @@ internal static class Artwork
     private static readonly SemaphoreSlim Downloads=new(6,6);
     private static readonly ConcurrentDictionary<string,Task<BitmapSource?>> Images=new();
     private static readonly ConcurrentDictionary<string,string> Results=new();
-    private static readonly string Cache=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Absolute","Artwork","publisher-v1");
+    private static readonly string Cache=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Absolute","Artwork","publisher-v2");
     public static IReadOnlyDictionary<string,string> Status=>Results;
 
-    static Artwork()=>Client.DefaultRequestHeaders.UserAgent.ParseAdd("ABSOLUTE/0.3 (+https://github.com/svab1sekk/ABSOLUTE)");
+    static Artwork()=>Client.DefaultRequestHeaders.UserAgent.ParseAdd("ABSOLUTE/0.4 (+https://github.com/svab1sekk/ABSOLUTE)");
 
     public static Grid Scene(GameDefinition game,double height,bool hero=false)
     {
@@ -50,7 +50,7 @@ internal static class Artwork
         var path=Path.Combine(Cache,game.Id+".img");
         try
         {
-            if(File.Exists(path))
+            if(File.Exists(path)&&DateTime.UtcNow-File.GetLastWriteTimeUtc(path)<TimeSpan.FromHours(24))
             {
                 try{var cached=Decode(await File.ReadAllBytesAsync(path));Results[game.Id]="Cached publisher artwork";return cached;}
                 catch(Exception ex) when(ex is IOException or NotSupportedException or FileFormatException){File.Delete(path);}
@@ -62,16 +62,21 @@ internal static class Artwork
                 if(game.Id=="fortnite")
                 {
                     using var content=JsonDocument.Parse(response.Bytes);var root=content.RootElement;
-                    var imageUrl=root.TryGetProperty("battleroyalenewsv2",out var modern)?FindNewsImage(modern):null;
-                    imageUrl??=root.TryGetProperty("battleroyalenews",out var classic)?FindNewsImage(classic):null;
-                    imageUrl??=FindNewsImage(root);
+                    var imageUrl=PublisherImages.Fortnite(root);
                     uri=new Uri(imageUrl??throw new InvalidDataException("Fortnite's public news feed did not expose artwork."));
                     resolved=uri.ToString();response=await FetchAsync(uri);
+                }
+                if(response.Html&&game.Id is "valorant" or "lol")
+                {
+                    var html=System.Text.Encoding.UTF8.GetString(response.Bytes);
+                    if(PublisherImages.LatestRiotArticle(html,game.Id) is string article)
+                    {uri=new Uri(uri,article);resolved=uri.ToString();response=await FetchAsync(uri);}
+                    else throw new InvalidDataException("The publisher did not expose a current game-update article.");
                 }
                 if(response.Html)
                 {
                     var html=System.Text.Encoding.UTF8.GetString(response.Bytes);
-                    var imageUrl=FindOpenGraphImage(html)??throw new InvalidDataException("The publisher did not expose a cover image.");
+                    var imageUrl=(game.Id.StartsWith("project-",StringComparison.Ordinal)?FindSiteIcon(html):FindOpenGraphImage(html))??throw new InvalidDataException("The publisher did not expose a cover image.");
                     uri=new Uri(uri,WebUtility.HtmlDecode(imageUrl));
                     if(uri.Host.EndsWith("rgpub.io",StringComparison.OrdinalIgnoreCase))
                     {
@@ -84,12 +89,16 @@ internal static class Artwork
                 var bitmap=Decode(response.Bytes);Directory.CreateDirectory(Cache);
                 var temporary=path+"."+Guid.NewGuid().ToString("N")+".tmp";
                 try{await File.WriteAllBytesAsync(temporary,response.Bytes);File.Move(temporary,path,true);}finally{if(File.Exists(temporary))File.Delete(temporary);}
-                Results[game.Id]="Publisher artwork";return bitmap;
+                Results[game.Id]="Publisher artwork · "+resolved;return bitmap;
             }
             finally{Downloads.Release();}
         }
         catch(Exception ex) when(ex is HttpRequestException or IOException or InvalidDataException or UnauthorizedAccessException or TaskCanceledException or NotSupportedException or UriFormatException or FileFormatException or JsonException or ArgumentException or InvalidOperationException or System.Runtime.InteropServices.COMException)
-        {Results[game.Id]=ex.Message+" · "+resolved;return null;}
+        {
+            if(File.Exists(path))
+                try{var cached=Decode(await File.ReadAllBytesAsync(path));Results[game.Id]="Cached artwork · refresh unavailable";return cached;}catch(Exception cacheError)when(cacheError is IOException or FileFormatException or NotSupportedException){}
+            Results[game.Id]=ex.Message+" · "+resolved;return null;
+        }
     }
 
     private static BitmapSource Decode(byte[] bytes)
@@ -123,20 +132,33 @@ internal static class Artwork
         throw new InvalidDataException("The publisher returned too many redirects.");
     }
 
-    private static string? FindNewsImage(JsonElement element)
+    public static FrameworkElement ProjectAvatar(PlaybookDefinition project)
     {
-        if(element.ValueKind==JsonValueKind.Object)
+        var image=new Image{Width=48,Height=48,Stretch=Stretch.Uniform,RenderTransformOrigin=new Point(.5,.5)};
+        var frame=new Border{Width=48,Height=48,CornerRadius=new CornerRadius(12),Background=Brush("#211A29"),Child=image,ClipToBounds=true};
+        frame.SizeChanged+=(_,_)=>frame.Clip=new RectangleGeometry(new Rect(0,0,48,48),12,12);
+        if(project.AvatarUrl is string source)_=Load();
+        return frame;
+        async Task Load()
         {
-            foreach(var property in element.EnumerateObject())
-                if(property.Name.Equals("image",StringComparison.OrdinalIgnoreCase)&&property.Value.ValueKind==JsonValueKind.String&&Uri.TryCreate(property.Value.GetString(),UriKind.Absolute,out var uri)&&uri.Scheme=="https"&&AllowedHost(uri.Host))return uri.ToString();
-            foreach(var property in element.EnumerateObject())if(FindNewsImage(property.Value) is {} image)return image;
+            var definition=new GameDefinition("project-"+project.Id,project.Name,[],project.Accent,0,ArtworkUrl:project.AvatarUrl);
+            image.Source=await GetAsync(definition);
         }
-        else if(element.ValueKind==JsonValueKind.Array)
-            foreach(var item in element.EnumerateArray())if(FindNewsImage(item) is {} image)return image;
-        return null;
+    }
+    public static Task WarmProjectsAsync()=>Task.WhenAll(Catalogs.Playbooks.Where(p=>p.AvatarUrl is not null).Select(p=>GetAsync(new GameDefinition("project-"+p.Id,p.Name,[],p.Accent,0,ArtworkUrl:p.AvatarUrl))));
+
+    private static string? FindSiteIcon(string html)
+    {
+        foreach(Match tag in Regex.Matches(html,@"<link\b[^>]*>",RegexOptions.IgnoreCase))
+        {
+            if(!Regex.IsMatch(tag.Value,"rel\\s*=\\s*[\"'](?:apple-touch-icon|icon|shortcut icon)[\"']",RegexOptions.IgnoreCase))continue;
+            var url=Regex.Match(tag.Value,"href\\s*=\\s*[\"'](?<url>[^\"']+)[\"']",RegexOptions.IgnoreCase).Groups["url"].Value;
+            if(url.Length>0&&!url.EndsWith(".svg",StringComparison.OrdinalIgnoreCase))return url;
+        }
+        return FindOpenGraphImage(html);
     }
 
-    private static bool AllowedHost(string host)=>new[]{"steamstatic.com","steamusercontent.com","epicgames.com","unrealengine.com","fortnite.com","playvalorant.com","rgpub.io","riotgames.com","leagueoflegends.com","escapefromtarkov.com","osu.ppy.sh","assets.ppy.sh","contentstack.io","raw.githubusercontent.com"}.Any(allowed=>host.Equals(allowed,StringComparison.OrdinalIgnoreCase)||host.EndsWith("."+allowed,StringComparison.OrdinalIgnoreCase));
+    private static bool AllowedHost(string host)=>new[]{"steamstatic.com","steamusercontent.com","epicgames.com","unrealengine.com","fortnite.com","playvalorant.com","rgpub.io","riotgames.com","leagueoflegends.com","escapefromtarkov.com","osu.ppy.sh","assets.ppy.sh","contentstack.io","raw.githubusercontent.com","github.com","githubusercontent.com","fsosx.com","ameliorated.io","amelabs.net"}.Any(allowed=>host.Equals(allowed,StringComparison.OrdinalIgnoreCase)||host.EndsWith("."+allowed,StringComparison.OrdinalIgnoreCase));
 
     private static string? FindOpenGraphImage(string html)
     {

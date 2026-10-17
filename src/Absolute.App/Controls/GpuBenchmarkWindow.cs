@@ -14,14 +14,14 @@ namespace Absolute.App.Controls;
 
 internal static class GpuBenchmarkWindow
 {
-    public static async Task<ComponentBenchmarkResult> RunAsync(Window owner,IProgress<double>? progress,CancellationToken cancellationToken)
+    public static async Task<ComponentBenchmarkResult> RunAsync(Window owner,IProgress<double>? progress,CancellationToken cancellationToken,bool threeD=false)
     {
         using var cancellation=CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         var completion=new TaskCompletionSource<ComponentBenchmarkResult>(TaskCreationOptions.RunContinuationsAsynchronously);
         var host=new SurfaceHost();var finished=false;
-        var window=new Window{Title="ABSOLUTE · GPU 2D",Owner=owner,Width=1000,Height=620,MinWidth=800,MinHeight=500,WindowStartupLocation=WindowStartupLocation.CenterOwner,WindowStyle=WindowStyle.None,ResizeMode=ResizeMode.NoResize,Background=Brush("#0B090F"),FontFamily=owner.FontFamily};
+        var window=new Window{Title=threeD?"ABSOLUTE · GPU 3D":"ABSOLUTE · GPU 2D",Owner=owner,Width=1000,Height=620,MinWidth=800,MinHeight=500,WindowStartupLocation=WindowStartupLocation.CenterOwner,WindowStyle=WindowStyle.None,ResizeMode=ResizeMode.NoResize,Background=Brush("#0B090F"),FontFamily=owner.FontFamily};
         WindowChrome.SetWindowChrome(window,new WindowChrome{CaptionHeight=38,GlassFrameThickness=new Thickness(0),UseAeroCaptionButtons=false});
-        var title=Text("GPU · Direct2D",13,"#C3B1D6");title.Margin=new Thickness(16,0,0,0);
+        var title=Text(threeD?"GPU 3D · Scene 1 · 1280 × 720":"GPU 2D · Direct2D",13,"#C3B1D6");title.Margin=new Thickness(16,0,0,0);
         var close=new Button{Content="×",Style=(Style)Application.Current.FindResource("Caption")};
         WindowChrome.SetIsHitTestVisibleInChrome(close,true);close.Click+=(_,_)=>cancellation.Cancel();
         var header=Columns((title,1),(close,-1));
@@ -34,7 +34,7 @@ internal static class GpuBenchmarkWindow
             {
                 var pixels=host.Pixels();var width=Math.Max(1,pixels.Right-pixels.Left);var height=Math.Max(1,pixels.Bottom-pixels.Top);
                 var handle=host.Handle;
-                var result=await Task.Run(()=>Measure(handle,width,height,progress,cancellation.Token),cancellation.Token);
+                var result=await Task.Run(()=>threeD?Gpu3DWorkload.Measure(handle,progress,cancellation.Token):Measure(handle,width,height,progress,cancellation.Token),cancellation.Token);
                 completion.TrySetResult(result);
             }
             catch(OperationCanceledException){completion.TrySetCanceled(cancellation.Token);}

@@ -1,103 +1,144 @@
+using System.IO;
+using System.Net;
+using System.Net.Http;
 using System.Text.Json;
+using System.Text.RegularExpressions;
+using System.Xml.Linq;
 using Absolute.Core;
 
 namespace Absolute.App.Services;
 
 internal static class DriverService
 {
-    public static async Task<DriverSearchResult> SearchAsync(CancellationToken cancellationToken)
+    private static readonly HttpClient Client=new(new HttpClientHandler{AutomaticDecompression=DecompressionMethods.All}){Timeout=TimeSpan.FromSeconds(22),MaxResponseContentBufferSize=8*1024*1024};
+    static DriverService()=>Client.DefaultRequestHeaders.UserAgent.ParseAdd("ABSOLUTE/0.4 (+https://github.com/svab1sekk/ABSOLUTE)");
+
+    public static async Task<VendorDriverResult> SearchAsync(HardwarePart part,IReadOnlyList<DriverDevice> installed,CancellationToken cancellationToken)
     {
-        const string script="""
-            $session=New-Object -ComObject Microsoft.Update.Session
-            $session.ClientApplicationID='ABSOLUTE driver check'
-            $searcher=$session.CreateUpdateSearcher()
-            $searcher.Online=$true
-            $result=$searcher.Search("IsInstalled=0 and Type='Driver' and IsHidden=0")
-            $found=@()
-            for($i=0;$i -lt $result.Updates.Count;$i++){
-              $update=$result.Updates.Item($i)
-              $found+=@{Title=$update.Title;HardwareId=$update.DriverHardwareID;Provider=$update.DriverProvider;Version=$update.DriverVerDate.ToString('yyyy-MM-dd');UpdateId=$update.Identity.UpdateID;Revision=$update.Identity.RevisionNumber;Downloaded=$update.IsDownloaded}
-            }
-            ConvertTo-Json -InputObject @($found) -Compress -Depth 4
-            """;
+        var source=SupportUrl(part);var checkedAt=DateTimeOffset.UtcNow;
         try
         {
-            var json=await PowerShellRunner.RunAsync(script,cancellationToken,TimeSpan.FromMinutes(5));
-            return new(JsonSerializer.Deserialize<DriverUpdate[]>(json,new JsonSerializerOptions{PropertyNameCaseInsensitive=true})??[],DateTimeOffset.UtcNow);
+            if(part.Category=="Processor")return new(part.Id,source,"CPU support is included in motherboard chipset packages",[],checkedAt);
+            if(part.Category=="Graphics"&&part.Name.Contains("NVIDIA",StringComparison.OrdinalIgnoreCase))
+            {
+                if(System.Runtime.InteropServices.RuntimeInformation.OSArchitecture!=System.Runtime.InteropServices.Architecture.X64)
+                    return new(part.Id,source,"Choose the matching architecture on NVIDIA support",[],checkedAt);
+                // Match NVIDIA's own product-family IDs, including desktop/notebook variants.
+                var lookups=await GetAsync("https://www.nvidia.com/Download/API/lookupValueSearch.aspx?TypeID=3",cancellationToken);
+                var values=XDocument.Parse(lookups).Descendants("LookupValue").ToArray();
+                var name=NormalizeGpu(part.Name);
+                var matches=values.Where(v=>NormalizeGpu(v.Element("Name")?.Value??"")==name).ToArray();
+                if(matches.Length>1)
+                {
+                    var notebook=HardwareDiscovery.Query("SELECT PCSystemType FROM Win32_ComputerSystem").Any(x=>Convert.ToInt32(x.GetValueOrDefault("PCSystemType"))==2);
+                    var series=XDocument.Parse(await GetAsync("https://www.nvidia.com/Download/API/lookupValueSearch.aspx?TypeID=2",cancellationToken)).Descendants("LookupValue")
+                        .Where(v=>Regex.IsMatch(v.Element("Name")?.Value??"","notebook|laptop|Quadro Blade",RegexOptions.IgnoreCase)).Select(v=>v.Element("Value")?.Value).ToHashSet();
+                    matches=matches.Where(v=>series.Contains(v.Attribute("ParentID")?.Value)==notebook).ToArray();
+                }
+                if(matches.Length!=1||!int.TryParse(matches[0].Element("Value")?.Value,out var family))return new(part.Id,source,"NVIDIA could not match this model automatically",[],checkedAt);
+                var os=Environment.OSVersion.Version.Build>=22000?135:57;
+                var json=await GetAsync($"https://gfwsl.geforce.com/services_toolkit/services/com/nvidia/services/AjaxDriverService.php?func=DriverManualLookup&pfid={family}&osID={os}&dch=1&numberOfResults=10&languageCode=1033",cancellationToken);
+                var driver=installed.FirstOrDefault(d=>(d.Provider+" "+d.Manufacturer).Contains("NVIDIA",StringComparison.OrdinalIgnoreCase));
+                var packages=VendorDrivers.ReadNvidia(json,driver is null?null:VendorDrivers.NvidiaVersion(driver.Version));
+                return new(part.Id,source,packages.Count>0?"Checked NVIDIA catalog":"No matching Game Ready package returned",packages,checkedAt);
+            }
+            if(part.Category=="Motherboard"&&part.Name.StartsWith("ASUS ",StringComparison.OrdinalIgnoreCase))
+            {
+                var model=Uri.EscapeDataString(part.Name[5..]);
+                var root="https://www.asus.com/support/api/product.asmx/";
+                var osJson=await GetAsync(root+"GetPDOS?website=global&model="+model,cancellationToken);
+                using var osDoc=JsonDocument.Parse(osJson);
+                var windows=Environment.OSVersion.Version.Build>=22000?"Windows 11":"Windows 10";
+                var os=osDoc.RootElement.GetProperty("Result").GetProperty("Obj").EnumerateArray().FirstOrDefault(v=>VendorDrivers.Value(v,"Name").Contains(windows,StringComparison.OrdinalIgnoreCase));
+                if(os.ValueKind==JsonValueKind.Undefined)return new(part.Id,source,"ASUS lists no packages for this Windows version",[],checkedAt);
+                var osId=VendorDrivers.Value(os,"Id");
+                var json=await GetAsync(root+"GetPDDrivers?website=global&model="+model+"&osid="+Uri.EscapeDataString(osId),cancellationToken);
+                var packages=VendorDrivers.ReadAsus(json,installed);
+                return new(part.Id,source,packages.Count>0?"Latest motherboard packages · ASUS":"No matching packages returned by ASUS",packages,checkedAt);
+            }
+            // Some vendors expose versioned downloads in the product page. Do not label
+            // a driver current unless a comparable version and a model-specific package exist.
+            var html=await GetAsync(source,cancellationToken);
+            if(part.Category=="Graphics")
+            {
+                var vendor=part.Name.Contains("Radeon",StringComparison.OrdinalIgnoreCase)?"AMD":part.Name.Contains("Intel",StringComparison.OrdinalIgnoreCase)?"Intel":"";
+                var model=Regex.Replace(part.Name,@"\b(?:AMD|Intel|Radeon|Graphics)\b|\s+","",RegexOptions.IgnoreCase);
+                var pageText=Regex.Replace(WebUtility.HtmlDecode(Regex.Replace(html,"<[^>]+>"," ")),@"\s+|[®™]","");
+                // Only a model-specific product response may advertise a direct GPU package.
+                if(model.Length>3&&pageText.Contains(model,StringComparison.OrdinalIgnoreCase))
+                {
+                    var current=installed.FirstOrDefault(d=>d.Category.Equals("DISPLAY",StringComparison.OrdinalIgnoreCase))?.Version;
+                    var gpuPackages=VendorDrivers.ReadGpuPage(html,vendor,current);
+                    if(gpuPackages.Count>0)return new(part.Id,source,"Checked "+vendor+" product downloads",gpuPackages,checkedAt);
+                }
+            }
+            var downloads=ReadProductDownloads(html,source,part,installed);
+            return new(part.Id,source,downloads.Count>0?"Manufacturer downloads found":"Open manufacturer support for model-specific packages",downloads,checkedAt);
         }
-        catch(OperationCanceledException){throw;}
-        catch(Exception ex){return new([],DateTimeOffset.UtcNow,ex.Message);}
+        catch(OperationCanceledException)when(cancellationToken.IsCancellationRequested){throw;}
+        catch(Exception error)when(error is HttpRequestException or TaskCanceledException or JsonException or System.Xml.XmlException or InvalidOperationException or KeyNotFoundException or ArgumentException or IOException)
+        {return new(part.Id,source,"Vendor check unavailable · use manufacturer support",[],checkedAt);}
     }
 
-    public static async Task<IReadOnlyList<string>> DownloadAsync(IEnumerable<DriverUpdate> offers,CancellationToken cancellationToken)
+    private static async Task<string> GetAsync(string url,CancellationToken cancellationToken)
     {
-        var selected=offers.Where(u=>!u.Downloaded).DistinctBy(u=>u.UpdateId).ToArray();
-        if(selected.Any(u=>!Guid.TryParse(u.UpdateId,out _)||u.Revision<0))throw new InvalidOperationException("The driver offer has an invalid update identity.");
-        if(selected.Length==0)return [];
-        var json=Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(JsonSerializer.Serialize(selected.Select(u=>new{u.UpdateId,u.Revision}))));
-        var script="""
-            $requests=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('__REQUESTS__')) | ConvertFrom-Json
-            $session=New-Object -ComObject Microsoft.Update.Session
-            $session.ClientApplicationID='ABSOLUTE driver download'
-            $searcher=$session.CreateUpdateSearcher()
-            $collection=New-Object -ComObject Microsoft.Update.UpdateColl
-            foreach($request in $requests){
-              $criteria="UpdateID='$($request.UpdateId)' and RevisionNumber=$($request.Revision)"
-              $found=$searcher.Search($criteria)
-              if($found.Updates.Count -ne 1){throw 'The selected driver offer is no longer available. Check updates again.'}
-              $update=$found.Updates.Item(0)
-              if(-not $update.EulaAccepted){throw 'This driver requires its license to be accepted in Windows Update.'}
-              [void]$collection.Add($update)
-            }
-            $downloader=$session.CreateUpdateDownloader()
-            $downloader.Updates=$collection
-            $result=$downloader.Download()
-            $downloaded=@()
-            for($i=0;$i -lt $collection.Count;$i++){
-              if($result.GetUpdateResult($i).ResultCode -eq 2){$downloaded+=$collection.Item($i).Identity.UpdateID}
-            }
-            if($downloaded.Count -ne $collection.Count){throw 'Windows could not download every selected package. Open Windows Update for details.'}
-            ConvertTo-Json -InputObject @($downloaded) -Compress
-            """;
-        var result=await PowerShellRunner.RunAsync(script.Replace("__REQUESTS__",json,StringComparison.Ordinal),cancellationToken,TimeSpan.FromMinutes(15));
-        return JsonSerializer.Deserialize<string[]>(result)??[];
+        using var response=await Client.GetAsync(url,cancellationToken);response.EnsureSuccessStatusCode();
+        return await response.Content.ReadAsStringAsync(cancellationToken);
     }
 
-    public static string SupportUrl(HardwarePart component)
+    private static string NormalizeGpu(string name)=>Regex.Replace(HardwareNames.Clean(name),@"\bNVIDIA\b|\s+with Max-Q Design|\s+\d+GB|\s*\(.*?\)|\s+(Laptop|Notebook) GPU", "",RegexOptions.IgnoreCase).Split('/')[0].Trim().ToUpperInvariant();
+
+    private static IReadOnlyList<VendorPackage> ReadProductDownloads(string html,string page,HardwarePart part,IReadOnlyList<DriverDevice> installed)
     {
-        var name=component.Name;var query=Uri.EscapeDataString(name);
-        if(component.Category=="Motherboard")
+        // JSON-LD SoftwareApplication data belongs to the vendor page, not an aggregator.
+        var result=new List<VendorPackage>();
+        foreach(Match script in Regex.Matches(html,"<script[^>]+type=[\"']application/ld\\+json[\"'][^>]*>(.*?)</script>",RegexOptions.IgnoreCase|RegexOptions.Singleline))
         {
-            var model=System.Text.RegularExpressions.Regex.Replace(name,@"^(ASUS|MSI|Gigabyte|ASRock)\s+","",System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            try{using var doc=JsonDocument.Parse(WebUtility.HtmlDecode(script.Groups[1].Value));Visit(doc.RootElement);}catch(JsonException){}
+        }
+        return result.DistinctBy(p=>p.DownloadUrl).ToArray();
+        void Visit(JsonElement element)
+        {
+            if(element.ValueKind==JsonValueKind.Array){foreach(var child in element.EnumerateArray())Visit(child);return;}
+            if(element.ValueKind!=JsonValueKind.Object)return;
+            var name=VendorDrivers.Value(element,"name");var version=VendorDrivers.Value(element,"softwareVersion");var download=VendorDrivers.Value(element,"downloadUrl");
+            var model=part.Name.Split(' ',2).Last();
+            var origin=new Uri(page).Host;origin=origin.StartsWith("www.",StringComparison.OrdinalIgnoreCase)?origin[4..]:origin;
+            if(name.Contains(model,StringComparison.OrdinalIgnoreCase)&&version.Length>0&&VendorDrivers.OfficialUrl(download,origin))
+                result.Add(new(name,version,download,installed.Select(d=>d.Version).Distinct().Take(2).ToArray() is [var current]?current:null));
+            foreach(var child in element.EnumerateObject())if(child.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array)Visit(child.Value);
+        }
+    }
+
+    public static string SupportUrl(HardwarePart part)
+    {
+        var name=part.Name;var query=Uri.EscapeDataString(name);
+        if(part.Category=="Motherboard")
+        {
+            var model=Regex.Replace(name,@"^(ASUS|MSI|Gigabyte|ASRock)\s+","",RegexOptions.IgnoreCase);
             if(name.StartsWith("ASUS",StringComparison.OrdinalIgnoreCase))return "https://www.asus.com/supportonly/"+Uri.EscapeDataString(model)+"/helpdesk_download/";
-            if(name.StartsWith("MSI",StringComparison.OrdinalIgnoreCase))return "https://www.msi.com/Motherboard/"+Uri.EscapeDataString(System.Text.RegularExpressions.Regex.Replace(model,@"\s*\(MS-[^)]*\)","").Trim().Replace(' ','-'))+"/support#driver";
+            if(name.StartsWith("MSI",StringComparison.OrdinalIgnoreCase))return "https://www.msi.com/Motherboard/"+Uri.EscapeDataString(Regex.Replace(model,@"\s*\(MS-[^)]*\)","").Trim().Replace(' ','-'))+"/support#driver";
             if(name.Contains("Gigabyte",StringComparison.OrdinalIgnoreCase))return "https://www.gigabyte.com/Search?kw="+query;
             if(name.Contains("ASRock",StringComparison.OrdinalIgnoreCase))return "https://www.asrock.com/support/index.asp?Model="+Uri.EscapeDataString(model);
         }
-        if(name.Contains("TITAN ARMY",StringComparison.OrdinalIgnoreCase))return "https://www.titan-army.com/";
-        if(particular("LG "))return "https://www.lg.com/us/support/software-firmware-drivers";
-        if(particular("AOC "))return "https://aoc.com/";
-        if(particular("Acer "))return "https://www.acer.com/us-en/support/drivers-and-manuals";
-        if(particular("Philips "))return "https://www.philips.com/support";
-        if(particular("ViewSonic "))return "https://www.viewsonic.com/global/support/";
-        if(particular("HP "))return "https://support.hp.com/drivers";
-        if(particular("iiyama "))return "https://iiyama.com/gl_en/support/";
-        return VendorUrl(new("",name,component.Category,name,"","","",[],null));
-        bool particular(string brand)=>name.StartsWith(brand,StringComparison.OrdinalIgnoreCase);
-    }
-
-    public static string VendorUrl(DriverDevice device)
-    {
-        var value=(device.Manufacturer+" "+device.Provider+" "+device.Name).ToLowerInvariant();
-        foreach(var (token,url) in Vendors)if(value.Contains(token,StringComparison.Ordinal))return url;
-        return "https://support.microsoft.com/windows/automatically-get-recommended-drivers-and-updates-for-your-hardware-4efb3701-345d-44db-dbff-8017b0e6b341";
+        if(name.Contains("NVIDIA",StringComparison.OrdinalIgnoreCase))return "https://www.nvidia.com/en-us/drivers/";
+        if(part.Category=="Graphics"&&Regex.Match(name,@"Radeon\s+RX\s+(\d{4})\s*(XTX|XT|GRE)?",RegexOptions.IgnoreCase) is {Success:true} radeon)
+        {
+            var number=radeon.Groups[1].Value;var model="amd-radeon-rx-"+number+(radeon.Groups[2].Success?"-"+radeon.Groups[2].Value.ToLowerInvariant():"");
+            return $"https://www.amd.com/en/support/downloads/drivers.html/graphics/radeon-rx/radeon-rx-{number[0]}000-series/{model}.html";
+        }
+        if(part.Category=="Graphics"&&Regex.IsMatch(name,@"Intel.*(?:Arc|Iris\s*Xe)",RegexOptions.IgnoreCase))return "https://www.intel.com/content/www/us/en/download/785597/intel-arc-iris-xe-graphics-windows.html";
+        if(name.Contains("AMD",StringComparison.OrdinalIgnoreCase)||name.Contains("Radeon",StringComparison.OrdinalIgnoreCase))return "https://www.amd.com/en/support/download/drivers.html";
+        if(name.Contains("Intel",StringComparison.OrdinalIgnoreCase))return "https://www.intel.com/content/www/us/en/search.html?ws=text#q="+query+"&sort=relevancy&f:@tabfilter=[Downloads]";
+        if(name.Contains("TITAN ARMY",StringComparison.OrdinalIgnoreCase))return "https://www.titan-army.com/search?q="+Uri.EscapeDataString(name.Replace("TITAN ARMY ","",StringComparison.OrdinalIgnoreCase));
+        foreach(var (brand,url) in Vendors)if(name.Contains(brand,StringComparison.OrdinalIgnoreCase))return url+query;
+        return "https://www.google.com/search?q="+Uri.EscapeDataString(name+" official manufacturer drivers");
     }
     private static readonly (string,string)[] Vendors=
     [
-        ("nvidia","https://www.nvidia.com/Download/index.aspx"),("advanced micro","https://www.amd.com/en/support/download/drivers.html"),("amd","https://www.amd.com/en/support/download/drivers.html"),("intel","https://www.intel.com/content/www/us/en/download-center/home.html"),
-        ("logitech","https://support.logi.com/"),("razer","https://mysupport.razer.com/"),("corsair","https://www.corsair.com/us/en/s/downloads"),("steelseries","https://steelseries.com/gg"),("hyperx","https://hyperx.com/pages/ngenuity"),
-        ("wooting","https://wooting.io/wootility"),("keychron","https://www.keychron.com/"),("glorious","https://www.gloriousgaming.com/pages/software"),("pulsar","https://www.pulsar.gg/pages/download"),("endgame","https://www.endgamegear.com/"),("vaxee","https://www.vaxee.co/en/"),("zowie","https://zowie.benq.com/en-us/support.html"),("ducky","https://www.duckychannel.com.tw/"),
-        ("asustek","https://www.asus.com/support/download-center/"),("asus","https://www.asus.com/support/download-center/"),("micro-star","https://www.msi.com/support"),("gigabyte","https://www.gigabyte.com/Support"),("asrock","https://www.asrock.com/support/"),
-        ("dell","https://www.dell.com/support/home"),("lenovo","https://pcsupport.lenovo.com/"),("hewlett","https://support.hp.com/drivers"),("realtek","https://www.realtek.com/Download/List?cate_id=593&menu_id=298"),("samsung","https://www.samsung.com/support/downloads/"),("benq","https://www.benq.com/en-us/support.html"),("lg electronics","https://www.lg.com/us/support/software-firmware-drivers"),("nzxt","https://nzxt.com/software/cam")
+        ("Dell","https://www.dell.com/support/search/en-us#q="),("Lenovo","https://pcsupport.lenovo.com/us/en/search?query="),("HP ","https://support.hp.com/us-en/search?q="),
+        ("Samsung","https://www.samsung.com/us/support/search/?query="),("BenQ","https://www.benq.com/en-us/search.html?q="),("LG ","https://www.lg.com/us/search?q="),
+        ("ASUS","https://www.asus.com/support/search-result.aspx?searchType=products&searchKey="),("MSI","https://www.msi.com/search/"),("AOC ","https://aoc.com/search?query="),
+        ("Acer","https://www.acer.com/us-en/support/product-support?search="),("ViewSonic","https://www.viewsonic.com/global/search.php?f_search="),("Philips","https://www.philips.com/c-w/search.html#q="),("iiyama","https://iiyama.com/gl_en/search/?q=")
     ];
 }

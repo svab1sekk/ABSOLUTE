@@ -17,7 +17,14 @@ public sealed class AppPreferences
     public string? SelectedGame { get; set; }
     public List<GameDefinition> CustomGames { get; set; } = [];
     public List<ComponentBenchmarkResult> ComponentBenchmarks { get; set; } = [];
+    public Dictionary<string, GameProfileSettings> GameProfiles { get; set; } = new();
+    public List<BenchmarkRun> BenchmarkRuns { get; set; } = [];
     public GameSessionJournal? GameSession { get; set; }
+}
+
+public sealed record GameProfileSettings(Guid? PowerPlan, string Priority)
+{
+    public static GameProfileSettings Default => new(PowerPlans.Performance, "AboveNormal");
 }
 
 public static class PowerPlans

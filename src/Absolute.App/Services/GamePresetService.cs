@@ -51,11 +51,13 @@ internal sealed class GamePresetService(AppPreferences preferences,PreferenceSto
             await RestoreCoreAsync();
             using var process=Process.GetProcessById(detected.ProcessId);
             var plans=await WindowsSystemService.GetPowerPlansAsync();
-            var current=plans.FirstOrDefault(p=>p.Active);var performance=plans.FirstOrDefault(p=>p.Id==PowerPlans.Performance);
+            var profile=preferences.GameProfiles.GetValueOrDefault(detected.Game.Id)??GameProfileSettings.Default;
+            var current=plans.FirstOrDefault(p=>p.Active);var performance=plans.FirstOrDefault(p=>p.Id==profile.PowerPlan);
             long started=0;ProcessPriorityClass? original=null;
             try{started=process.StartTime.ToUniversalTime().Ticks;original=process.PriorityClass;}
             catch(Exception ex) when(ex is System.ComponentModel.Win32Exception or InvalidOperationException){}
-            var priority=started!=0&&original is ProcessPriorityClass.Normal or ProcessPriorityClass.BelowNormal or ProcessPriorityClass.Idle?ProcessPriorityClass.AboveNormal:(ProcessPriorityClass?)null;
+            var requested=profile.Priority switch{"Normal"=>ProcessPriorityClass.Normal,"AboveNormal"=>ProcessPriorityClass.AboveNormal,_=>(ProcessPriorityClass?)null};
+            var priority=started!=0&&original is not null&&original is not (ProcessPriorityClass.High or ProcessPriorityClass.RealTime)&&requested!=original?requested:null;
             preferences.GameSession=new(detected.Game.Id,current?.Id,current is not null?performance?.Id:null,detected.ProcessId,started,original?.ToString(),priority?.ToString());
             store.Save(preferences);
             try
