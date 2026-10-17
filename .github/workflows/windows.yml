@@ -35,6 +35,9 @@ jobs:
         shell: pwsh
         run: |
           if (Test-Path ./artifacts/smoke/report.json) {
+            $report = Get-Content ./artifacts/smoke/report.json -Raw
+            $escaped = $report.Replace('%', '%25').Replace("`r", '%0D').Replace("`n", '%0A')
+            Write-Host "::notice title=Windows smoke report::$escaped"
             '## Windows smoke report' >> $env:GITHUB_STEP_SUMMARY
             '```json' >> $env:GITHUB_STEP_SUMMARY
             Get-Content ./artifacts/smoke/report.json >> $env:GITHUB_STEP_SUMMARY

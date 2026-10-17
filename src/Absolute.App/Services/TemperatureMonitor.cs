@@ -45,6 +45,12 @@ internal sealed class TemperatureMonitor:IDisposable
             if(!administrator)start.Verb="runas";
             foreach(var argument in new[]{"--sensor-host",current.Id.ToString(),current.StartTime.ToUniversalTime().Ticks.ToString(),token})start.ArgumentList.Add(argument);
             using var helper=Process.Start(start)??throw new InvalidOperationException("The sensor helper did not start.");
+            while(!connection.IsCompleted)
+            {
+                if(helper.HasExited)throw new InvalidOperationException($"The sensor helper exited before connecting (code {helper.ExitCode}).");
+                await Task.WhenAny(connection,Task.Delay(200,timeout.Token));
+                timeout.Token.ThrowIfCancellationRequested();
+            }
             await connection;
             if(!GetNamedPipeClientProcessId(pipe.SafePipeHandle,out var processId)||processId!=helper.Id)throw new InvalidOperationException("The sensor connection was not the launched helper.");
             _=ReadAsync(pipe);

@@ -43,6 +43,7 @@ internal static class Artwork
     private static async Task<BitmapSource?> LoadAsync(GameDefinition game)
     {
         var source=GameArtwork.Source(game);if(source is null){Results[game.Id]="No publisher artwork";return null;}
+        Results[game.Id]="Loading publisher artwork";
         if(!Regex.IsMatch(game.Id,@"^[a-zA-Z0-9-]{1,80}$")){Results[game.Id]="Invalid cache key";return null;}
         var path=Path.Combine(Cache,game.Id+".img");
         try

@@ -24,7 +24,7 @@ public partial class MainWindow
             await temperatures.StartAsync(false);
             try{await temperatures.FirstReading.WaitAsync(TimeSpan.FromSeconds(110));}catch(TimeoutException){errors.Add("Built-in sensor helper did not respond.");}
             if(temperatures.Snapshot?.Ready!=true)errors.Add("Built-in sensor initialization failed: "+temperatures.Status);
-            await Artwork.WarmAsync(Catalogs.Games).WaitAsync(TimeSpan.FromSeconds(100));
+            try{await Artwork.WarmAsync(Catalogs.Games).WaitAsync(TimeSpan.FromSeconds(40));}catch(TimeoutException){/* Publisher results are reported separately; offline access must not prevent rendering. */}
             if(hardware is null||hardware.Memory==0)errors.Add("No physical memory reported.");
             if(snapshot is null||snapshot.MemoryTotal==0)errors.Add("Live memory readings unavailable.");
             if(!powerPlans.Any(p=>p.Active))errors.Add("No active Windows power plan discovered.");
