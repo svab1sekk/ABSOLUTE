@@ -61,7 +61,7 @@ internal static class WindowsDeviceIdentity
             var vendor=Regex.Match(devicePath,@"VID_([0-9A-F]{4})",RegexOptions.IgnoreCase).Groups[1].Value.ToUpperInvariant();
             var brand=vendor switch{"046D"=>"Logitech","1532"=>"Razer","1B1C"=>"Corsair","1038"=>"SteelSeries","31E3"=>"Wooting","3434"=>"Keychron",_=>""};
             if(brand.Length>0&&!name.Contains(brand,StringComparison.OrdinalIgnoreCase))name=brand+" "+name;
-            var category=device.Type==1?"Keyboard":"Mouse";
+            var category=HardwareIdentity.PeripheralCategory(name,device.Type==1?"Keyboard":"Mouse");
             var container=Container(node);var identity=container.Length>0?container:instance;
             var product=Regex.Match(devicePath,@"VID_[0-9A-F]{4}&PID_[0-9A-F]{4}",RegexOptions.IgnoreCase).Value;
             var part=new HardwarePart(category,name,[],instance,product.Length>0?["HID\\"+product,"USB\\"+product]:[]);

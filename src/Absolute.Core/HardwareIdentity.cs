@@ -56,11 +56,17 @@ public static class HardwareIdentity
     {
         if (string.IsNullOrWhiteSpace(name)) return false;
         var value = HardwareNames.Clean(name);
-        if (Regex.IsMatch(value, @"^(?:(?:USB|HID|Bluetooth|Generic|Standard|Wireless|Gaming|2\.4G|PS/2|PnP)[-\s]*)*(?:keyboard|mouse|monitor|input device|audio device|device)$", RegexOptions.IgnoreCase)) return false;
+        var generic=Regex.Replace(value,@"^(?:Logitech|Logi|Razer|Microsoft|Dell|HP|Corsair|SteelSeries)\s+","",RegexOptions.IgnoreCase);
+        if (Regex.IsMatch(generic, @"^(?:(?:USB|HID|Bluetooth|Generic|Standard|Wireless|Gaming|Mechanical|Optical|Multimedia|2\.4G|PS/2|PnP)[-\s]*)*(?:keyboard|mouse|monitor|input device|audio device|device)$", RegexOptions.IgnoreCase)) return false;
         if (Regex.IsMatch(value, @"^(?:(?:Logitech|Logi|Razer)\s+)?(?:(?:USB|Unifying|LIGHTSPEED|Bolt|Wireless|2\.4G)\s+)*Receiver$", RegexOptions.IgnoreCase)) return false;
-        if (Regex.IsMatch(value, @"^(?:USB|HID|Bluetooth|Generic|Standard|Unknown|Unavailable|PnP|2\.4G|Wireless receiver|USB receiver|Gaming (?:mouse|keyboard)$|Keyboard$|Mouse$|Audio device$)", RegexOptions.IgnoreCase))
-            return Regex.IsMatch(value, @"(?:Logitech|Razer|SteelSeries|Corsair|Wooting|HyperX|Keychron|Ducky|Glorious|Pulsar|Endgame|Vaxee|Zowie|Elgato|Rode|Shure|Blue Yeti)", RegexOptions.IgnoreCase);
-        return !Regex.IsMatch(value, @"(?:compliant|human interface|high definition audio|audio endpoint|Realtek|NVIDIA.*Audio|Intel.*Audio|Microsoft.*Audio|DisplayPort|HDMI|host controller|root hub|composite device|^Speakers$|^Microphone$)", RegexOptions.IgnoreCase);
+        return !Regex.IsMatch(value, @"(?:^Unknown|^Unavailable|compliant|human interface|high definition audio|audio endpoint|advanced audio device|Realtek|NVIDIA.*Audio|Intel.*Audio|Microsoft.*Audio|DisplayPort|HDMI|host controller|root hub|composite device|virtual|hyper.?v|^Speakers$|^Microphone$)", RegexOptions.IgnoreCase);
+    }
+
+    public static string PeripheralCategory(string name,string reported)
+    {
+        if(Regex.IsMatch(name,@"mouse|superlight|deathadder|basilisk|viper|naga|aerox|rival|sensei|\bG(?:102|203|305|403|502|503|603|703|903)\b|Keychron\s+M\d",RegexOptions.IgnoreCase))return "Mouse";
+        if(Regex.IsMatch(name,@"keyboard|wooting|keychron|blackwidow|huntsman|deathstalker|alloy|apex.?pro|\bK\d{2,3}\b|\bG(?:413|513|613|715|815|915)\b",RegexOptions.IgnoreCase))return "Keyboard";
+        return reported;
     }
 
     public static HardwarePart CombineMemory(IEnumerable<MemoryModuleInfo> source, ulong usable)

@@ -14,4 +14,8 @@ The installer is pinned by SHA256 and its Authenticode signature is verified dur
 
 Game artwork is retrieved from publishers' official game pages and Steam's publisher-supplied library images, and cached locally. The images and game names belong to their respective publishers. Source mappings are in `src/Absolute.Core/GameArtwork.cs`; ABSOLUTE does not claim ownership or affiliation.
 
+GPU PCI name data is derived from the PCI ID Project, copyright Martin Mares and Albert Pool, under its 3-clause BSD option. Source snapshot: https://github.com/pciutils/pciids/blob/f9817f8532cc2796c1e27479faa43607239fa8a0/pci.ids . The extracted data is embedded for identification when a fresh Windows installation reports a basic display adapter. See `ThirdParty/PciIds-LICENSE.txt`.
+
+The osu! image is loaded directly from ppy's official osu-resources repository at commit a3423ae5fa76223b648db1df31875a952b588d69. Resource license: https://github.com/ppy/osu-resources/blob/master/LICENCE . Assets retain their creators' rights.
+
 Vortice.Windows and SharpGen.Runtime use the MIT license. .NET and Microsoft runtime components retain their upstream notices included with the self-contained distribution. Other NuGet dependency licenses are available through each package's metadata.

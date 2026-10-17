@@ -12,6 +12,7 @@
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="../Absolute.Core/Absolute.Core.csproj" /></ItemGroup>
   <ItemGroup><Resource Include="Assets/logo.png" Condition="Exists('Assets/logo.png')" /></ItemGroup>
+  <ItemGroup><EmbeddedResource Include="Assets/gpu-pci.json.gz" LogicalName="Absolute.GpuPciIds" /></ItemGroup>
   <ItemGroup><Content Include="Dependencies/PawnIO_setup.exe" CopyToOutputDirectory="PreserveNewest" Condition="Exists('Dependencies/PawnIO_setup.exe')" /></ItemGroup>
   <ItemGroup>
     <PackageReference Include="System.Management" Version="10.0.2" />

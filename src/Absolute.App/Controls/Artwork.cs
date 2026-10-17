@@ -43,6 +43,7 @@ internal static class Artwork
     private static async Task<BitmapSource?> LoadAsync(GameDefinition game)
     {
         var source=GameArtwork.Source(game);if(source is null){Results[game.Id]="No publisher artwork";return null;}
+        var resolved=source;
         Results[game.Id]="Loading publisher artwork";
         if(!Regex.IsMatch(game.Id,@"^[a-zA-Z0-9-]{1,80}$")){Results[game.Id]="Invalid cache key";return null;}
         var path=Path.Combine(Cache,game.Id+".img");
@@ -61,7 +62,13 @@ internal static class Artwork
                 {
                     var html=System.Text.Encoding.UTF8.GetString(response.Bytes);
                     var imageUrl=FindOpenGraphImage(html)??throw new InvalidDataException("The publisher did not expose a cover image.");
-                    uri=new Uri(uri,WebUtility.HtmlDecode(imageUrl));response=await FetchAsync(uri);
+                    uri=new Uri(uri,WebUtility.HtmlDecode(imageUrl));
+                    if(uri.Host.EndsWith("rgpub.io",StringComparison.OrdinalIgnoreCase))
+                    {
+                        var builder=new UriBuilder(uri);var parameters=builder.Query.TrimStart('?').Split('&',StringSplitOptions.RemoveEmptyEntries).Where(p=>!p.StartsWith("auto=",StringComparison.OrdinalIgnoreCase)&&!p.StartsWith("fm=",StringComparison.OrdinalIgnoreCase));
+                        builder.Query=string.Join("&",parameters.Append("fm=jpg"));uri=builder.Uri;
+                    }
+                    resolved=uri.ToString();response=await FetchAsync(uri);
                 }
                 if(response.Html)throw new InvalidDataException("The publisher returned a page instead of an image.");
                 var bitmap=Decode(response.Bytes);Directory.CreateDirectory(Cache);
@@ -71,8 +78,8 @@ internal static class Artwork
             }
             finally{Downloads.Release();}
         }
-        catch(Exception ex) when(ex is HttpRequestException or IOException or UnauthorizedAccessException or TaskCanceledException or NotSupportedException or UriFormatException or FileFormatException)
-        {Results[game.Id]=ex.Message;return null;}
+        catch(Exception ex) when(ex is HttpRequestException or IOException or InvalidDataException or UnauthorizedAccessException or TaskCanceledException or NotSupportedException or UriFormatException or FileFormatException or System.Runtime.InteropServices.COMException)
+        {Results[game.Id]=ex.Message+" · "+resolved;return null;}
     }
 
     private static BitmapSource Decode(byte[] bytes)
@@ -93,7 +100,7 @@ internal static class Artwork
         return(memory.ToArray(),response.Content.Headers.ContentType?.MediaType?.Contains("html",StringComparison.OrdinalIgnoreCase)==true);
     }
 
-    private static bool AllowedHost(string host)=>new[]{"steamstatic.com","steamusercontent.com","epicgames.com","unrealengine.com","playvalorant.com","rgpub.io","riotgames.com","leagueoflegends.com","escapefromtarkov.com","osu.ppy.sh","assets.ppy.sh","contentstack.io"}.Any(allowed=>host.Equals(allowed,StringComparison.OrdinalIgnoreCase)||host.EndsWith("."+allowed,StringComparison.OrdinalIgnoreCase));
+    private static bool AllowedHost(string host)=>new[]{"steamstatic.com","steamusercontent.com","epicgames.com","unrealengine.com","fortnite.com","playvalorant.com","rgpub.io","riotgames.com","leagueoflegends.com","escapefromtarkov.com","osu.ppy.sh","assets.ppy.sh","contentstack.io","raw.githubusercontent.com"}.Any(allowed=>host.Equals(allowed,StringComparison.OrdinalIgnoreCase)||host.EndsWith("."+allowed,StringComparison.OrdinalIgnoreCase));
 
     private static string? FindOpenGraphImage(string html)
     {

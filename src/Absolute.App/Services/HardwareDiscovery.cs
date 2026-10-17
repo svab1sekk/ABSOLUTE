@@ -29,7 +29,7 @@ internal static class HardwareDiscovery
         }
         Read("Processor", "SELECT Name,NumberOfCores,NumberOfLogicalProcessors,DeviceID FROM Win32_Processor", x => Part("Processor", S(x,"Name"),
             ("Cores",S(x,"NumberOfCores")),("Threads",S(x,"NumberOfLogicalProcessors"))) with { Id=S(x,"DeviceID") });
-        Read("Graphics", "SELECT Name,PNPDeviceID FROM Win32_VideoController", x => Part("Graphics",S(x,"Name")) with { Id=S(x,"PNPDeviceID") });
+        Read("Graphics", "SELECT Name,PNPDeviceID FROM Win32_VideoController", x => Part("Graphics",GpuProductNames.Resolve(S(x,"Name"),S(x,"PNPDeviceID"))) with { Id=S(x,"PNPDeviceID") });
         try
         {
             var modules=Query("SELECT Capacity,Manufacturer,PartNumber,ConfiguredClockSpeed,SMBIOSMemoryType FROM Win32_PhysicalMemory")

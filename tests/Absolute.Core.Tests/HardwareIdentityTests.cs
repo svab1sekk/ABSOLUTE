@@ -44,7 +44,16 @@ public sealed class HardwareIdentityTests
     [InlineData("Logitech G PRO X SUPERLIGHT 2",true)]
     [InlineData("Wooting 80HE",true)]
     [InlineData("HyperX QuadCast",true)]
+    [InlineData("USB Dell KB216",true)]
+    [InlineData("HyperVMonitor",false)]
     public void OnlySpecificPhysicalProductNamesAreShown(string name,bool specific)=>Assert.Equal(specific,HardwareIdentity.IsSpecificPeripheral(name));
+
+    [Fact]
+    public void CompositeGamingDevicesKeepTheirPhysicalProductCategory()
+    {
+        Assert.Equal("Mouse",HardwareIdentity.PeripheralCategory("Logitech PRO X SUPERLIGHT 2","Keyboard"));
+        Assert.Equal("Keyboard",HardwareIdentity.PeripheralCategory("Wooting 80HE","Mouse"));
+    }
 
     [Fact]
     public void UnknownEdidNamesStayUnknownInsteadOfBecomingABrand()

@@ -105,9 +105,10 @@ public partial class MainWindow : Window
                 if(existing>=0)parts[existing]=parts[existing] with{Details=parts[existing].Details.Concat(gpu.Details).ToArray()};else parts.Add(gpu);
             }
             inventory=result with{Parts=parts};
+            if(hardware is not null&&parts.FirstOrDefault(p=>p.Category=="Graphics") is {} primary)hardware=hardware with{Graphics=primary.Name};
         }
         catch(Exception error){inventoryError=error.Message;}
-        if(!closed)RefreshPage("PC","Drivers");
+        if(!closed)RefreshPage("Home","PC","Drivers");
     }
     private async Task LoadDevicesAsync()
     {

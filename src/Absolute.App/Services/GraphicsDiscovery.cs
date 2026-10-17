@@ -14,7 +14,7 @@ internal static class GraphicsDiscovery
             using(adapter)
             {
                 var description=adapter.Description1;
-                if((description.Flags&AdapterFlags.Software)!=0)continue;
+                if((description.Flags&AdapterFlags.Software)!=0||description.Description.Contains("Basic Render Driver",StringComparison.OrdinalIgnoreCase)||description.Description.Contains("Basic Display Adapter",StringComparison.OrdinalIgnoreCase))continue;
                 result.Add(new("Graphics",HardwareNames.Clean(description.Description),new Dictionary<string,string>
                 {
                     [description.DedicatedVideoMemory>0?"VRAM":"Memory"] = description.DedicatedVideoMemory>0?$"{(ulong)description.DedicatedVideoMemory/1073741824d:0.#} GB":"Shared"

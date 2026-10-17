@@ -72,7 +72,7 @@ internal static class TemperatureHost
         using var installed=registry.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\PawnIO");
         if(Version.TryParse(installed?.GetValue("DisplayVersion") as string,out var version)&&version>=new Version(2,0,0))return;
         if(!BundledDriverIsValid())throw new InvalidOperationException("The bundled sensor driver is missing or failed verification.");
-        var start=new ProcessStartInfo(DriverPath){UseShellExecute=false,CreateNoWindow=true};start.ArgumentList.Add("-install");
+        var start=new ProcessStartInfo(DriverPath){UseShellExecute=false,CreateNoWindow=true};start.ArgumentList.Add("-install");start.ArgumentList.Add("-silent");
         using var process=Process.Start(start)??throw new InvalidOperationException("The sensor driver could not start.");
         if(!process.WaitForExit(90000)){process.Kill(true);throw new TimeoutException("Sensor driver setup did not finish.");}
         if(process.ExitCode!=0)throw new InvalidOperationException("Windows could not install the sensor driver.");
