@@ -4,7 +4,7 @@ Native Windows 10/11 desktop utility. Self-contained .NET, custom window control
 
 [Download Windows x64](https://github.com/svab1sekk/ABSOLUTE/releases/download/v0.3.0-preview.1/ABSOLUTE-win-x64.zip) · [Release](https://github.com/svab1sekk/ABSOLUTE/releases/tag/v0.3.0-preview.1)
 
-Extract the whole ZIP and launch `ABSOLUTE.exe`. Keep its folders together. Windows 10 x64 and Windows 11 are supported; ARM64 is cross-built in CI. Releases are unsigned previews.
+Extract the whole ZIP and launch `ABSOLUTE.exe`. Keep its folders together. Windows 10 x64 version 1809 or newer and Windows 11 are supported; ARM64 is cross-built in CI. Releases are unsigned previews.
 
 ## Drivers
 
@@ -17,7 +17,7 @@ Motherboard packages opens the manufacturer's model page or search, where availa
 ## PC
 
 - CPU: model, cores and threads. WMI `MaxClockSpeed` is not labelled as the advertised boost clock.
-- GPU: model and DXGI dedicated video memory, or shared memory when no dedicated allocation is reported.
+- GPU: model and DXGI dedicated video memory, or shared memory when no dedicated allocation is reported. A bundled PCI ID lookup identifies supported Intel/AMD/NVIDIA hardware when a fresh install reports a basic display adapter.
 - RAM: one combined capacity/type entry, identifiable brand or product family, usable memory and reported configured speed. Module slots and DIMM labels are omitted. Product-family recognition uses the reported part number; it does not invent a kit model.
 - Motherboard: model and BIOS version.
 - Storage: physical drives, capacity, and SSD/HDD/NVMe classification when Windows exposes it.
