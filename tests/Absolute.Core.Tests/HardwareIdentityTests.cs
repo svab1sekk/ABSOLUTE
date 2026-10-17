@@ -53,6 +53,7 @@ public sealed class HardwareIdentityTests
     {
         Assert.Equal("Mouse",HardwareIdentity.PeripheralCategory("Logitech PRO X SUPERLIGHT 2","Keyboard"));
         Assert.Equal("Keyboard",HardwareIdentity.PeripheralCategory("Wooting 80HE","Mouse"));
+        Assert.Equal("Keyboard",HardwareIdentity.PeripheralCategory("Patriot Viper V765 Keyboard","Mouse"));
     }
 
     [Fact]
@@ -69,6 +70,7 @@ public sealed class HardwareIdentityTests
         DriverDevice Device(string id,string name,string type)=>new(id,name,type,"","","","",[],true);
         Assert.True(HardwareIdentity.IsMotherboardDriver(Device(@"PCI\VEN_1022&DEV_43F7","AMD PCI Express","SYSTEM")));
         Assert.True(HardwareIdentity.IsMotherboardDriver(Device(@"USB\VID_8087&PID_0033","Intel Bluetooth","Bluetooth")));
+        Assert.True(HardwareIdentity.IsMotherboardDriver(Device(@"PCI\VEN_8086&DEV_7A60","Intel USB Host Controller","USB")));
         Assert.False(HardwareIdentity.IsMotherboardDriver(Device(@"PCI\VEN_10EC","Realtek Audio","MEDIA")));
         Assert.False(HardwareIdentity.IsMotherboardDriver(Device(@"ROOT\NET\0000","Virtual adapter","NET")));
     }

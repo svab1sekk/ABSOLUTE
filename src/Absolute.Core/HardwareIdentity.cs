@@ -64,7 +64,8 @@ public static class HardwareIdentity
 
     public static string PeripheralCategory(string name,string reported)
     {
-        if(Regex.IsMatch(name,@"mouse|superlight|deathadder|basilisk|viper|naga|aerox|rival|sensei|\bG(?:102|203|305|403|502|503|603|703|903)\b|Keychron\s+M\d",RegexOptions.IgnoreCase))return "Mouse";
+        if(name.Contains("keyboard",StringComparison.OrdinalIgnoreCase))return "Keyboard";
+        if(Regex.IsMatch(name,@"mouse|superlight|deathadder|basilisk|Razer\s+Viper|naga|aerox|rival|sensei|\bG(?:102|203|305|403|502|503|603|703|903)\b|Keychron\s+M\d",RegexOptions.IgnoreCase))return "Mouse";
         if(Regex.IsMatch(name,@"keyboard|wooting|keychron|blackwidow|huntsman|deathstalker|alloy|apex.?pro|\bK\d{2,3}\b|\bG(?:413|513|613|715|815|915)\b",RegexOptions.IgnoreCase))return "Keyboard";
         return reported;
     }
@@ -110,6 +111,6 @@ public static class HardwareIdentity
     {
         var category = device.Category.ToUpperInvariant();
         if (category is "BLUETOOTH") return device.Id.StartsWith("USB\\", StringComparison.OrdinalIgnoreCase) || device.Id.StartsWith("PCI\\", StringComparison.OrdinalIgnoreCase);
-        return category is "SYSTEM" or "NET" or "HDC" or "SCSIADAPTER" && device.Id.StartsWith("PCI\\", StringComparison.OrdinalIgnoreCase) && !Regex.IsMatch(device.Name, "audio|sound|high definition", RegexOptions.IgnoreCase);
+        return category is "SYSTEM" or "NET" or "HDC" or "SCSIADAPTER" or "USB" && device.Id.StartsWith("PCI\\", StringComparison.OrdinalIgnoreCase) && !Regex.IsMatch(device.Name, "audio|sound|high definition", RegexOptions.IgnoreCase);
     }
 }
