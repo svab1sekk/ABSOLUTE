@@ -10,29 +10,89 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: windows-release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: codex/download-windows-x64
-          path: package
-      - name: Verify download
-        working-directory: package
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Validate release version and source
+        id: release
         run: |
-          sha256sum --check SHA256SUMS.txt
-          python3 -m zipfile -t ABSOLUTE-win-x64.zip
+          $releaseTag = $env:GITHUB_REF_NAME -replace '^release/', ''
+          if ($releaseTag -notmatch '^v(?<version>\d+\.\d+\.\d+)(?:-[0-9A-Za-z.-]+)?$') {
+            throw "Expected a version tag such as v0.1.1-preview.1; received $releaseTag."
+          }
+          $releaseVersion = $Matches.version
+          [xml]$project = Get-Content ./src/Absolute.App/Absolute.App.csproj -Raw
+          if ($project.Project.PropertyGroup.Version -ne $releaseVersion) {
+            throw "Release $releaseTag does not match application version $($project.Project.PropertyGroup.Version)."
+          }
+          if (-not (Test-Path ./RELEASE_NOTES.md)) { throw 'RELEASE_NOTES.md is required.' }
+          $existingTag = git tag --list $releaseTag
+          if ($LASTEXITCODE -ne 0) { throw 'Could not inspect release tags.' }
+          if ($existingTag) {
+            $tagSource = git rev-parse "refs/tags/$releaseTag^{commit}"
+            if ($LASTEXITCODE -ne 0) { throw "Could not resolve tag $releaseTag." }
+            if ($tagSource.Trim() -ne $env:GITHUB_SHA) {
+              throw "Tag $releaseTag points to $tagSource, but this build uses $env:GITHUB_SHA. Use a new version tag."
+            }
+          }
+          "tag=$releaseTag" >> $env:GITHUB_OUTPUT
+      - name: Test and publish Windows x64
+        run: ./scripts/publish.ps1 -Runtime win-x64
+      - name: Windows UI and hardware smoke check
+        run: |
+          $output = Join-Path $env:GITHUB_WORKSPACE 'artifacts/smoke'
+          $app = Start-Process ./artifacts/ABSOLUTE-win-x64/ABSOLUTE.exe -ArgumentList '--smoke-test', ('"{0}"' -f $output) -PassThru
+          if (-not $app.WaitForExit(90000)) { $app.Kill(); throw 'Smoke check timed out.' }
+          if ($app.ExitCode -ne 0) { throw 'Smoke check failed. See report.json.' }
+          $reportPath = Join-Path $output 'report.json'
+          $report = Get-Content $reportPath -Raw | ConvertFrom-Json
+          if ($report.Success -ne $true) { throw 'Smoke report did not indicate success.' }
+          if (@($report.Screenshots).Count -eq 0) { throw 'Smoke check produced no screenshots.' }
+          foreach ($screenshot in $report.Screenshots) {
+            if (-not (Test-Path (Join-Path $output $screenshot))) { throw "Missing smoke screenshot: $screenshot" }
+          }
+          Copy-Item (Join-Path $output 'desktop-system.png') ./artifacts/ABSOLUTE-system.png
+          Get-Content $reportPath
+      - name: Save smoke screenshots and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-release-smoke-results
+          path: artifacts/smoke/
+          if-no-files-found: warn
+      - name: Calculate download checksum
+        run: |
+          $hash = (Get-FileHash ./artifacts/ABSOLUTE-win-x64.zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  ABSOLUTE-win-x64.zip" | Set-Content ./artifacts/SHA256SUMS.txt -Encoding ascii
       - name: Publish preview release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
         run: |
-          RELEASE_TAG="${GITHUB_REF_NAME#release/}"
-          gh release create "$RELEASE_TAG" \
-            package/ABSOLUTE-win-x64.zip \
-            package/SHA256SUMS.txt \
-            --verify-tag \
-            --title "ABSOLUTE 0.1.0 Preview" \
-            --notes-file package/README.txt \
+          # GitHub rejects an existing release; never replace published assets.
+          gh release create $env:RELEASE_TAG `
+            ./artifacts/ABSOLUTE-win-x64.zip `
+            ./artifacts/SHA256SUMS.txt `
+            ./artifacts/ABSOLUTE-system.png `
+            --target $env:GITHUB_SHA `
+            --title "ABSOLUTE $env:RELEASE_TAG" `
+            --notes-file ./RELEASE_NOTES.md `
             --prerelease
+          if ($LASTEXITCODE -ne 0) { throw 'Release creation failed; existing releases were not overwritten.' }

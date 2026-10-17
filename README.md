@@ -4,7 +4,7 @@ A native Windows desktop utility with a black-to-purple interface, custom window
 
 ## Run on Windows
 
-[Download ABSOLUTE for Windows x64](https://github.com/svab1sekk/ABSOLUTE/releases/download/v0.1.0-preview.1/ABSOLUTE-win-x64.zip) · [Release page](https://github.com/svab1sekk/ABSOLUTE/releases/tag/v0.1.0-preview.1)
+[Download ABSOLUTE for Windows x64](https://github.com/svab1sekk/ABSOLUTE/releases/download/v0.1.1-preview.1/ABSOLUTE-win-x64.zip) · [Release page](https://github.com/svab1sekk/ABSOLUTE/releases/tag/v0.1.1-preview.1)
 
 Extract the **entire** ZIP and run `ABSOLUTE.exe`. The self-contained build includes .NET; no separate runtime installation is needed. This is an early preview. Additional builds are available from the repository's **Windows** workflow after it passes.
 

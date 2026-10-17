@@ -107,9 +107,8 @@ public partial class MainWindow : Window
             }
             network = nextNetwork;
             networkTime = now;
-            StatusText.Text = preferences.LiveMonitoring ? "Live monitoring  ·  Local session" : "Monitoring paused  ·  Local session";
         }
-        catch (Exception error) { StatusText.Text = "Monitoring unavailable"; Notify(error.Message); }
+        catch (Exception error) { Notify(error.Message); }
         finally { sampling = false; }
     }
 
@@ -119,11 +118,8 @@ public partial class MainWindow : Window
         cpuValue = memoryValue = memoryDetail = powerValue = uptimeValue = downloadValue = uploadValue = null;
         cpuChart = null; memoryBar = null;
         Page.Children.Clear(); PageScroll.ScrollToTop();
-        var eyebrow = Text("W O R K S P A C E   /   " + name.ToUpperInvariant(), 10, "#85728F", FontWeights.SemiBold);
-        eyebrow.Margin = new Thickness(0, 0, 0, 9); Page.Children.Add(eyebrow);
         var title = Text(name, 34, weight: FontWeights.SemiBold);
-        var header = Columns((title, 1), (Pill(name == "System" ? "●  SYSTEM OVERVIEW" : "ABSOLUTE"), -1));
-        header.Margin = new Thickness(0, 0, 0, 27); Page.Children.Add(header);
+        title.Margin = new Thickness(0, 0, 0, 27); Page.Children.Add(title);
         switch (name)
         {
             case "System": BuildSystem(); break;
@@ -154,15 +150,16 @@ public partial class MainWindow : Window
         var overview = Card(Columns((processor, 1.2), (Divider(memory), 1), (Divider(power), 1)), new Thickness(26));
         overview.Background = new LinearGradientBrush(Color.FromRgb(27, 19, 36), Color.FromRgb(19, 15, 25), 20);
         Page.Children.Add(overview);
-        Section("System controls", "Changes stay in your control");
+        Section("System controls", "");
         var rows = Stack(
             Row("Presets", "Power plan", ActivePlanName, B("Presets", () => Select("Presets"))),
             Row("Benchmark", "Game Mode", "Manage Windows gaming preferences", SettingsButton("gaming-gamemode")),
             Row("System", "Startup apps", "Review what launches with Windows", SettingsButton("startupapps")),
             Row("PC", "Storage cleanup", "Review temporary files in Windows", SettingsButton("storagesense"), true));
         Page.Children.Add(Card(rows, new Thickness(23, 2, 23, 2)));
-        var footer = Columns((Text("Quick access", 12, "#8C809B"), 1), (B("View PC details  ↗", () => Select("PC")), -1));
-        Page.Children.Add(footer);
+        var details = B("View PC details  ↗", () => Select("PC"));
+        details.HorizontalAlignment = HorizontalAlignment.Right;
+        Page.Children.Add(details);
     }
 
     private void BuildNetwork()
@@ -282,17 +279,16 @@ public partial class MainWindow : Window
             store.Save(preferences);
             if (preferences.LiveMonitoring) { await SampleAsync(); monitor.Start(); } else monitor.Stop();
             monitoring.Content = preferences.LiveMonitoring ? "Enabled" : "Paused";
-            StatusText.Text = preferences.LiveMonitoring ? "Live monitoring  ·  Local session" : "Monitoring paused  ·  Local session";
         });
         monitoring.Content = preferences.LiveMonitoring ? "Enabled" : "Paused";
         Page.Children.Add(Card(Stack(
-            Row("Benchmark", "Live monitoring", "Refresh CPU, memory, and network every 2 seconds", monitoring),
+            Row("Benchmark", "Hardware refresh", "Refresh CPU, memory, and network every 2 seconds", monitoring),
             Row("Presets", "Restore power plan", "Return to the plan saved before your first preset", B("Restore", RestorePowerPlan)),
             Row("PC", "Benchmark history", "Remove saved benchmark results from this PC", B("Clear history", () =>
             {
                 if (Confirm("Clear benchmark history?", "This removes your saved benchmark results.")) { preferences.Benchmarks.Clear(); store.Save(preferences); Notify("Benchmark history cleared."); }
             }), true)), new Thickness(23, 2, 23, 2)));
-        Page.Children.Add(Card(Stack(Text("ABSOLUTE", 22, weight: FontWeights.SemiBold), Text("Version 0.1.0", 12, "#A396AF"), Space(14), Text("Windows 10 / Windows 11", 13, "#BCAFCA"), Text("Preferences and results stay on this PC.", 12, "#A396AF"))));
+        Page.Children.Add(Card(Stack(Text("ABSOLUTE", 22, weight: FontWeights.SemiBold), Text($"Version {typeof(App).Assembly.GetName().Version?.ToString(3)}", 12, "#A396AF"), Space(14), Text("Windows 10 / Windows 11", 13, "#BCAFCA"), Text("Preferences and results stay on this PC.", 12, "#A396AF"))));
     }
 
     private async Task ApplyPowerPlan(Guid id)

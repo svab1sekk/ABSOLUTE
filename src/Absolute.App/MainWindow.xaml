@@ -1,27 +1,81 @@
-<Window x:Class="Absolute.App.MainWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework" Title="ABSOLUTE" Width="1240" Height="820" MinWidth="1020" MinHeight="700" WindowStartupLocation="CenterScreen" WindowStyle="None" ResizeMode="CanResize" Background="#0B090F" FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="14" UseLayoutRounding="True" SnapsToDevicePixels="True">
-  <shell:WindowChrome.WindowChrome><shell:WindowChrome CaptionHeight="38" ResizeBorderThickness="6" CornerRadius="0" GlassFrameThickness="0" UseAeroCaptionButtons="False" /></shell:WindowChrome.WindowChrome>
+<Window x:Class="Absolute.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        Title="ABSOLUTE" Width="1240" Height="820" MinWidth="1020" MinHeight="700"
+        WindowStartupLocation="CenterScreen" WindowStyle="None" ResizeMode="CanResize"
+        Background="#0B090F" FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="14"
+        UseLayoutRounding="True" SnapsToDevicePixels="True">
+  <shell:WindowChrome.WindowChrome>
+    <shell:WindowChrome CaptionHeight="38" ResizeBorderThickness="6" CornerRadius="0"
+                         GlassFrameThickness="0" UseAeroCaptionButtons="False" />
+  </shell:WindowChrome.WindowChrome>
   <Grid>
-    <Grid.Background><LinearGradientBrush StartPoint="0,0" EndPoint="1,1"><GradientStop Color="#0B0A0E" Offset="0" /><GradientStop Color="#0D0B12" Offset="0.68" /><GradientStop Color="#1B1026" Offset="1" /></LinearGradientBrush></Grid.Background>
-    <Grid.ColumnDefinitions><ColumnDefinition Width="206" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-    <Border Grid.Column="0" Background="#0B0A0E" BorderBrush="#211B29" BorderThickness="0,0,1,0">
-      <Grid><Grid.RowDefinitions><RowDefinition Height="174" /><RowDefinition Height="*" /><RowDefinition Height="76" /></Grid.RowDefinitions>
+    <Grid.Background>
+      <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Color="#0B0A0E" Offset="0" />
+        <GradientStop Color="#0D0B12" Offset="0.68" />
+        <GradientStop Color="#1B1026" Offset="1" />
+      </LinearGradientBrush>
+    </Grid.Background>
+    <Grid.RowDefinitions>
+      <RowDefinition Height="38" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="206" />
+      <ColumnDefinition Width="*" />
+    </Grid.ColumnDefinitions>
+
+    <Border Grid.RowSpan="2" Background="#0B0A0E" BorderBrush="#211B29" BorderThickness="0,0,1,0">
+      <Grid>
+        <Grid.RowDefinitions>
+          <RowDefinition Height="174" />
+          <RowDefinition Height="*" />
+          <RowDefinition Height="76" />
+        </Grid.RowDefinitions>
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,14,0,0">
           <Image Source="Assets/logo.png" Width="78" Height="78" RenderOptions.BitmapScalingMode="HighQuality" />
-          <TextBlock Text="A B S O L U T E" FontSize="13" FontWeight="SemiBold" Foreground="#C3B1D6" HorizontalAlignment="Center" Margin="0,16,0,0" />
+          <TextBlock Text="A B S O L U T E" FontSize="13" FontWeight="SemiBold" Foreground="#C3B1D6"
+                     HorizontalAlignment="Center" Margin="0,16,0,0" />
         </StackPanel>
         <StackPanel x:Name="Navigation" Grid.Row="1" />
-        <RadioButton x:Name="SettingsNav" Grid.Row="2" Style="{StaticResource Nav}" GroupName="Pages" ToolTip="Settings" AutomationProperties.Name="Settings" HorizontalAlignment="Left" VerticalAlignment="Center" Width="48" Padding="13" Margin="18,0,0,0" />
+        <Border Grid.Row="2" BorderBrush="#211B29" BorderThickness="0,1,0,0">
+          <RadioButton x:Name="SettingsNav" Style="{StaticResource Nav}" GroupName="Pages"
+                       ToolTip="Settings" AutomationProperties.Name="Settings"
+                       HorizontalAlignment="Left" VerticalAlignment="Center"
+                       Width="48" Padding="13" Margin="18,0,0,0" />
+        </Border>
       </Grid>
     </Border>
-    <Grid Grid.Column="1"><Grid.RowDefinitions><RowDefinition Height="38" /><RowDefinition Height="*" /><RowDefinition Height="34" /></Grid.RowDefinitions>
-      <Grid Grid.Row="0"><TextBlock Text="ABSOLUTE" FontSize="10" Foreground="#70657F" Margin="28,0,0,0" VerticalAlignment="Center" /><StackPanel Orientation="Horizontal" HorizontalAlignment="Right" shell:WindowChrome.IsHitTestVisibleInChrome="True">
-        <Button x:Name="MinimizeButton" Style="{StaticResource Caption}" ToolTip="Minimize" AutomationProperties.Name="Minimize" Click="MinimizeClick"><Path Stroke="#B4AABD" StrokeThickness="1" Data="M 0,0 L 10,0" /></Button>
-        <Button x:Name="MaximizeButton" Style="{StaticResource Caption}" ToolTip="Maximize" AutomationProperties.Name="Maximize or restore" Click="MaximizeClick"><Path Stroke="#B4AABD" StrokeThickness="1" Data="M 0,3 L 8,3 L 8,11 L 0,11 Z M 3,3 L 3,0 L 11,0 L 11,8 L 8,8" /></Button>
-        <Button Style="{StaticResource Caption}" ToolTip="Close" AutomationProperties.Name="Close" Click="CloseClick"><Path Stroke="#B4AABD" StrokeThickness="1.2" Data="M 0,0 L 10,10 M 10,0 L 0,10" /></Button>
-      </StackPanel></Grid>
-      <ScrollViewer x:Name="PageScroll" Grid.Row="1"><StackPanel x:Name="Page" Margin="36,26,36,24" MaxWidth="1400" /></ScrollViewer>
-      <Border Grid.Row="2" BorderBrush="#211B29" BorderThickness="0,1,0,0" Margin="36,0"><DockPanel VerticalAlignment="Center"><TextBlock Text="●" FontSize="9" Foreground="#86B79F" Margin="0,0,8,0" /><TextBlock x:Name="StatusText" Text="Local session" Foreground="#8D839B" FontSize="11" /><TextBlock Text="ABSOLUTE  /  0.1" Foreground="#70657F" FontSize="10" HorizontalAlignment="Right" /></DockPanel></Border>
+
+    <ScrollViewer x:Name="PageScroll" Grid.Row="1" Grid.Column="1">
+      <StackPanel x:Name="Page" Margin="36,26,36,24" MaxWidth="1400" />
+    </ScrollViewer>
+
+    <Grid Grid.ColumnSpan="2">
+      <TextBlock Text="ABSOLUTE" FontFamily="Bahnschrift, Segoe UI" FontSize="12" FontWeight="SemiBold"
+                 Foreground="#C3B1D6" Margin="16,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" />
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" shell:WindowChrome.IsHitTestVisibleInChrome="True">
+        <Button x:Name="MinimizeButton" Style="{StaticResource Caption}" ToolTip="Minimize"
+                AutomationProperties.Name="Minimize" Click="MinimizeClick">
+          <Path Stroke="#B4AABD" StrokeThickness="1" Data="M 0,0 L 10,0" />
+        </Button>
+        <Button x:Name="MaximizeButton" Style="{StaticResource Caption}" ToolTip="Maximize"
+                AutomationProperties.Name="Maximize or restore" Click="MaximizeClick">
+          <Path Stroke="#B4AABD" StrokeThickness="1" Data="M 0,3 L 8,3 L 8,11 L 0,11 Z M 3,3 L 3,0 L 11,0 L 11,8 L 8,8" />
+        </Button>
+        <Button Style="{StaticResource Caption}" ToolTip="Close" AutomationProperties.Name="Close" Click="CloseClick">
+          <Path Stroke="#B4AABD" StrokeThickness="1.2" Data="M 0,0 L 10,10 M 10,0 L 0,10" />
+        </Button>
+      </StackPanel>
     </Grid>
-    <Border x:Name="Toast" Grid.Column="1" Visibility="Collapsed" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="24,0,30,52" Padding="18,13" CornerRadius="10" Background="#292034" BorderBrush="#634779" BorderThickness="1" MaxWidth="560"><TextBlock x:Name="ToastText" Foreground="#EBE2F5" /></Border>
+
+    <Border x:Name="Toast" Grid.Row="1" Grid.Column="1" Visibility="Collapsed"
+            VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="24,0,30,24"
+            Padding="18,13" CornerRadius="10" Background="#292034" BorderBrush="#634779"
+            BorderThickness="1" MaxWidth="560">
+      <TextBlock x:Name="ToastText" Foreground="#EBE2F5" />
+    </Border>
   </Grid>
 </Window>
