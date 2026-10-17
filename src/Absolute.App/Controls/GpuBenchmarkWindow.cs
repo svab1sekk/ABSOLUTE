@@ -47,6 +47,8 @@ internal static class GpuBenchmarkWindow
 
     private static ComponentBenchmarkResult Measure(IntPtr window,int width,int height,IProgress<double>? progress,CancellationToken cancellationToken)
     {
+        using var graphicsFactory=Vortice.DXGI.DXGI.CreateDXGIFactory1<Vortice.DXGI.IDXGIFactory1>();
+        using var hardwareAdapter=Services.GraphicsDiscovery.PreferredAdapter(graphicsFactory);
         using var factory=D2D1.D2D1CreateFactory<ID2D1Factory>(FactoryType.SingleThreaded,DebugLevel.None);
         ID2D1HwndRenderTarget target;
         try

@@ -35,7 +35,6 @@ public partial class MainWindow : Window
     private Task inventoryTask=Task.CompletedTask,devicesTask=Task.CompletedTask;
     private CancellationTokenSource? driverCancellation,benchmarkCancellation;
     private bool sampling,detecting,closed,closingAllowed,closingInProgress,driverChecking,cpuHasInterval;
-    private readonly List<string> benchmarkNotices=[];
     private DateTimeOffset nextGameAttempt;
     private string? editingGame;
     private string selectedPage="Home",gameQuery="",gameState="Waiting for a game",inventoryError="",devicesError="";
@@ -111,7 +110,7 @@ public partial class MainWindow : Window
     }
     private async Task LoadDevicesAsync()
     {
-        try{devices=await Task.Run(HardwareDiscovery.ReadDrivers);}catch(Exception error){devicesError=error.Message;}
+        try{devices=await Task.Run(HardwareDiscovery.ReadDrivers);devicesError="";}catch(Exception error){devices=[];devicesError=error.Message;}
         if(!closed){UpdateHomeDriverStatus();RefreshPage("Drivers");}
     }
     private async Task StartDriverCheckAsync(){await Task.Delay(300);if(!closed)await RunDriverCheckAsync();}
@@ -156,7 +155,7 @@ public partial class MainWindow : Window
             var old=gamePresets.ActiveGame;
             if(found is null){await gamePresets.RestoreAsync();gameState="Waiting for a game";}
             else gameState=await gamePresets.ApplyAsync(found);
-            if(old!=gamePresets.ActiveGame)RefreshPage("Presets","Home");
+            if(old!=gamePresets.ActiveGame){if(editingGame is null)RefreshPage("Presets");RefreshPage("Home");}
         }
         catch(Exception error){gameState=error.Message;nextGameAttempt=DateTimeOffset.UtcNow.AddSeconds(30);if(!closed){Notify(error.Message);RefreshPage("Presets");}}
         finally{detecting=false;}

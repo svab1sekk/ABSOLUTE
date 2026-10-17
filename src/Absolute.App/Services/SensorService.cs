@@ -15,6 +15,8 @@ internal sealed class SensorService : IDisposable
     private readonly List<PerformanceCounter> gpuCounters=[];
     private DateTimeOffset nextGpuDiscovery;
     private bool probed;
+    private string? gpuCounterKey;
+    public string? GpuName{get;private set;}
     private IntPtr nvml;
     private NvmlHandle? getHandle;
     private NvmlTemperature? getTemperature;
@@ -54,12 +56,24 @@ internal sealed class SensorService : IDisposable
         {
             if(DateTimeOffset.UtcNow>nextGpuDiscovery)
             {
-                foreach(var counter in gpuCounters)counter.Dispose();gpuCounters.Clear();
-                if(PerformanceCounterCategory.Exists("GPU Engine"))
-                    foreach(var name in new PerformanceCounterCategory("GPU Engine").GetInstanceNames().Where(n=>n.Contains("_engtype_",StringComparison.OrdinalIgnoreCase)))
-                    {var counter=new PerformanceCounter("GPU Engine","Utilization Percentage",name,true);counter.NextValue();gpuCounters.Add(counter);}
-                nextGpuDiscovery=DateTimeOffset.UtcNow.AddSeconds(30);
-                return null;
+                try
+                {
+                    using var factory=Vortice.DXGI.DXGI.CreateDXGIFactory1<Vortice.DXGI.IDXGIFactory1>();
+                    using var adapter=GraphicsDiscovery.PreferredAdapter(factory);var description=adapter.Description1;
+                    GpuName=HardwareNames.Clean(description.Description);
+                    gpuCounterKey=$"luid_0x{description.Luid.HighPart:x8}_0x{description.Luid.LowPart:x8}_";
+                }
+                catch(Exception){gpuCounterKey=null;}
+                var names=gpuCounterKey is not null&&PerformanceCounterCategory.Exists("GPU Engine")
+                    ?new PerformanceCounterCategory("GPU Engine").GetInstanceNames().Where(n=>n.Contains(gpuCounterKey,StringComparison.OrdinalIgnoreCase)&&n.Contains("_engtype_",StringComparison.OrdinalIgnoreCase)).ToHashSet(StringComparer.OrdinalIgnoreCase)
+                    :new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach(var removed in gpuCounters.Where(c=>!names.Contains(c.InstanceName)).ToArray()){removed.Dispose();gpuCounters.Remove(removed);}
+                var retained=gpuCounters.Count>0;
+                var known=gpuCounters.Select(c=>c.InstanceName).ToHashSet(StringComparer.OrdinalIgnoreCase);
+                foreach(var name in names.Where(n=>!known.Contains(n)))
+                {var counter=new PerformanceCounter("GPU Engine","Utilization Percentage",name,true);counter.NextValue();gpuCounters.Add(counter);}
+                nextGpuDiscovery=DateTimeOffset.UtcNow.AddSeconds(8);
+                if(!retained)return null;
             }
             if(gpuCounters.Count==0)return null;
             return Math.Clamp(gpuCounters.GroupBy(c=>Regex.Match(c.InstanceName,@"luid_.*?_phys_\d+_eng_\d+").Value).Max(g=>g.Sum(c=>(double)c.NextValue())),0,100);

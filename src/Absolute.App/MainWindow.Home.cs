@@ -18,7 +18,7 @@ public partial class MainWindow
         gpuTemperature.ToolTip="Built-in GPU temperature monitoring";
         cpuChart=Chart(cpuHistory);gpuChart=Chart(gpuHistory);memoryChart=Chart(memoryHistory);
         var cpu=Tile("CPU",hardware?.Processor??"Processor",cpuValue,cpuTemperature,cpuChart);
-        var gpu=Tile("GPU",hardware?.Graphics??"Graphics",gpuValue,gpuTemperature,gpuChart);
+        var gpu=Tile("GPU",sensors.GpuName??hardware?.Graphics??"Graphics",gpuValue,gpuTemperature,gpuChart);
         var memory=Tile("RAM",inventory?.Parts.FirstOrDefault(p=>p.Category=="Memory")?.Name??"Physical memory",memoryValue,memoryDetail,memoryChart);
         cpu.Margin=new Thickness(0,0,10,18);gpu.Margin=new Thickness(5,0,5,18);memory.Margin=new Thickness(10,0,0,18);
         Page.Children.Add(Columns((cpu,1),(gpu,1),(memory,1)));

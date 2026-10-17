@@ -61,6 +61,7 @@ public partial class MainWindow
                 benchmarkState=component+" · preparing…";if(benchmarkStatus is not null)benchmarkStatus.Text=benchmarkState;
                 var progress=new Progress<double>(fraction=>
                 {
+                    if(benchmarkCancellation is null)return;
                     benchmarkProgress=(index+fraction)/tests.Count;benchmarkState=$"{component} · {fraction*duration:0.0} / {duration:0.#} s · {benchmarkProgress:P0}";
                     if(benchmarkBar is not null)benchmarkBar.Value=benchmarkProgress;
                     if(benchmarkStatus is not null)benchmarkStatus.Text=benchmarkState;

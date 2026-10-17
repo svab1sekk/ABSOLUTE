@@ -107,6 +107,13 @@ public partial class MainWindow
                     GameProfileCheck=gameProfileCheck,
                     OnlineDriverCheck="Manufacturer catalogs; comparison requires matched physical hardware. No Windows Update driver API is used.",
                     TemperatureMonitor=temperatures.Status,BundledSensorDriverVerified=Services.TemperatureHost.BundledDriverIsValid(),
+                    ArtworkSummary=new
+                    {
+                        Loaded=Artwork.Status.Count(p=>p.Value.StartsWith("Publisher artwork",StringComparison.Ordinal)||p.Value.StartsWith("Cached",StringComparison.Ordinal)),
+                        Expected=Catalogs.Games.Count+Catalogs.Playbooks.Count,
+                        Failures=Artwork.Status.Where(p=>!p.Value.StartsWith("Publisher artwork",StringComparison.Ordinal)&&!p.Value.StartsWith("Cached",StringComparison.Ordinal)).ToDictionary(p=>p.Key,p=>p.Value),
+                        CurrentGameArt=new[]{"fortnite","valorant","lol"}.ToDictionary(id=>id,id=>Artwork.Status.GetValueOrDefault(id,"Not loaded"))
+                    },
                     PublisherArtwork=Artwork.Status,
                     Playbooks="Official OS projects; no ABSOLUTE settings profiles are shown.",
                     Screenshots=rendered,Errors=errors
@@ -137,6 +144,11 @@ public partial class MainWindow
             process.Refresh();
             var restored=(await Services.WindowsSystemService.GetPowerPlansAsync()).First(p=>p.Active).Id;
             if(original!=restored||process.PriorityClass!=priority||settings.GameSession is not null)throw new InvalidOperationException("Game profile did not restore the original Windows state.");
+            settings.GameProfiles[game.Id]=new(null,"Keep");
+            await controller.ApplyAsync(new(game,null,process.Id));process.Refresh();
+            if(process.PriorityClass!=priority||(await Services.WindowsSystemService.GetPowerPlansAsync()).First(p=>p.Active).Id!=original)
+                throw new InvalidOperationException("The Keep current profile changed Windows settings.");
+            await controller.RestoreAsync();
         }
         finally
         {

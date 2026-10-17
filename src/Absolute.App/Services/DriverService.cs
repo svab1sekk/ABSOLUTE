@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
+using Microsoft.Win32;
 using Absolute.Core;
 
 namespace Absolute.App.Services;
@@ -53,7 +54,7 @@ internal static class DriverService
                 if(os.ValueKind==JsonValueKind.Undefined)return new(part.Id,source,"ASUS lists no packages for this Windows version",[],checkedAt);
                 var osId=VendorDrivers.Value(os,"Id");
                 var json=await GetAsync(root+"GetPDDrivers?website=global&model="+model+"&osid="+Uri.EscapeDataString(osId),cancellationToken);
-                var packages=VendorDrivers.ReadAsus(json,installed);
+                var packages=VendorDrivers.ReadAsus(json,installed,InstalledChipsetBundles());
                 return new(part.Id,source,packages.Count>0?"Latest motherboard packages · ASUS":"No matching packages returned by ASUS",packages,checkedAt);
             }
             // Some vendors expose versioned downloads in the product page. Do not label
@@ -76,7 +77,7 @@ internal static class DriverService
             return new(part.Id,source,downloads.Count>0?"Manufacturer downloads found":"Open manufacturer support for model-specific packages",downloads,checkedAt);
         }
         catch(OperationCanceledException)when(cancellationToken.IsCancellationRequested){throw;}
-        catch(Exception error)when(error is HttpRequestException or TaskCanceledException or JsonException or System.Xml.XmlException or InvalidOperationException or KeyNotFoundException or ArgumentException or IOException)
+        catch(Exception error)when(error is HttpRequestException or TaskCanceledException or JsonException or System.Xml.XmlException or InvalidOperationException or KeyNotFoundException or ArgumentException or IOException or UnauthorizedAccessException or System.Security.SecurityException)
         {return new(part.Id,source,"Vendor check unavailable · use manufacturer support",[],checkedAt);}
     }
 
@@ -84,6 +85,27 @@ internal static class DriverService
     {
         using var response=await Client.GetAsync(url,cancellationToken);response.EnsureSuccessStatusCode();
         return await response.Content.ReadAsStringAsync(cancellationToken);
+    }
+
+    private static IReadOnlyDictionary<string,string> InstalledChipsetBundles()
+    {
+        var result=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
+        foreach(var view in new[]{RegistryView.Registry64,RegistryView.Registry32})
+        {
+            using var machine=RegistryKey.OpenBaseKey(RegistryHive.LocalMachine,view);
+            using var root=machine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall");
+            foreach(var id in root?.GetSubKeyNames()??[])
+            {
+                try
+                {
+                    using var key=root?.OpenSubKey(id);var name=HardwareNames.Clean(key?.GetValue("DisplayName") as string??"");
+                    var vendor=name.Equals("AMD Chipset Software",StringComparison.OrdinalIgnoreCase)?"AMD":name.Equals("Intel Chipset Device Software",StringComparison.OrdinalIgnoreCase)?"Intel":null;
+                    if(vendor is not null&&key?.GetValue("DisplayVersion") is string version)result.TryAdd(vendor,version);
+                }
+                catch(Exception error)when(error is UnauthorizedAccessException or System.Security.SecurityException or IOException){}
+            }
+        }
+        return result;
     }
 
     private static string NormalizeGpu(string name)=>Regex.Replace(HardwareNames.Clean(name),@"\bNVIDIA\b|\s+with Max-Q Design|\s+\d+GB|\s*\(.*?\)|\s+(Laptop|Notebook) GPU", "",RegexOptions.IgnoreCase).Split('/')[0].Trim().ToUpperInvariant();

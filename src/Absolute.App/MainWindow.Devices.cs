@@ -66,6 +66,12 @@ public partial class MainWindow
         try
         {
             await Task.WhenAll(inventoryTask,devicesTask);
+            // Re-read installed versions after a user has downloaded and installed a package.
+            if(vendorResults.Count>0)
+            {
+                inventoryTask=LoadInventoryAsync();devicesTask=LoadDevicesAsync();
+                await Task.WhenAll(inventoryTask,devicesTask);
+            }
             using var gate=new SemaphoreSlim(3);
             await Task.WhenAll(MainDriverComponents().Select(async component=>
             {

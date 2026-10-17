@@ -52,7 +52,7 @@ public static class VendorDrivers
         return result.OrderByDescending(p => DateTimeOffset.TryParse(p.Date, CultureInfo.InvariantCulture, DateTimeStyles.None, out var date) ? date : DateTimeOffset.MinValue).Take(1).ToArray();
     }
 
-    public static IReadOnlyList<VendorPackage> ReadAsus(string json, IReadOnlyList<DriverDevice> installed)
+    public static IReadOnlyList<VendorPackage> ReadAsus(string json, IReadOnlyList<DriverDevice> installed, IReadOnlyDictionary<string,string>? bundles = null)
     {
         using var doc = JsonDocument.Parse(json);
         if (!doc.RootElement.TryGetProperty("Result", out var result) || !result.TryGetProperty("Obj", out var categories) || categories.ValueKind != JsonValueKind.Array) return [];
@@ -72,11 +72,14 @@ public static class VendorDrivers
                 // Keep the newest package for each vendor in a category; boards often have alternative Wi-Fi modules.
                 if (!seen.Add(categoryName + family)) continue;
                 var version = Value(file, "Version").TrimStart('V', 'v');
+                var wireless = Regex.IsMatch(categoryName + " " + title, @"wireless|Wi-?Fi|WLAN", RegexOptions.IgnoreCase);
                 var candidates = installed.Where(d => family.Length > 0 && (d.Name + " " + d.Provider + " " + d.Manufacturer).Contains(family, StringComparison.OrdinalIgnoreCase))
-                    .Where(d => categoryName.Contains("Bluetooth", StringComparison.OrdinalIgnoreCase) ? d.Category.Equals("BLUETOOTH", StringComparison.OrdinalIgnoreCase) : Regex.IsMatch(categoryName, "LAN|wireless", RegexOptions.IgnoreCase) ? d.Category.Equals("NET", StringComparison.OrdinalIgnoreCase) : d.Category.Equals("SYSTEM", StringComparison.OrdinalIgnoreCase)).ToArray();
+                    .Where(d => categoryName.Contains("Bluetooth", StringComparison.OrdinalIgnoreCase) ? d.Category.Equals("BLUETOOTH", StringComparison.OrdinalIgnoreCase) : Regex.IsMatch(categoryName, "LAN|wireless", RegexOptions.IgnoreCase) ? d.Category.Equals("NET", StringComparison.OrdinalIgnoreCase) && Regex.IsMatch(d.Name, @"wireless|Wi-?Fi|WLAN|802\.11", RegexOptions.IgnoreCase) == wireless : d.Category.Equals("SYSTEM", StringComparison.OrdinalIgnoreCase)).ToArray();
                 // Package bundles (especially chipsets) cannot be compared to an arbitrary device INF version.
                 var exact = candidates.Where(d => title.Contains(d.Name, StringComparison.OrdinalIgnoreCase)).Select(d => d.Version).Distinct().ToArray();
-                var installedVersion = !categoryName.Contains("chipset", StringComparison.OrdinalIgnoreCase) && exact.Length == 1 ? exact[0] : null;
+                var chipset = categoryName.Contains("chipset", StringComparison.OrdinalIgnoreCase);
+                var knownVersions = candidates.Select(d => d.Version).Distinct().ToArray();
+                var installedVersion = chipset ? bundles?.GetValueOrDefault(family) : exact.Length == 1 ? exact[0] : knownVersions.Length == 1 ? knownVersions[0] : null;
                 packages.Add(new(title.Length > 0 ? title : categoryName, version, url, installedVersion, Value(file, "ReleaseDate")));
             }
         }

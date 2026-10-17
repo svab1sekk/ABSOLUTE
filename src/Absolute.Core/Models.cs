@@ -11,8 +11,6 @@ public sealed class AppPreferences
     public bool LiveMonitoring { get; set; } = true;
     public Guid? PreviousPowerPlan { get; set; }
     public List<BenchmarkResult> Benchmarks { get; set; } = [];
-    public bool AutoGamePresets { get; set; } = true;
-    public bool AnimateLogo { get; set; } = true;
     public bool TemperatureMonitoring { get; set; } = true;
     public string? SelectedGame { get; set; }
     public List<GameDefinition> CustomGames { get; set; } = [];

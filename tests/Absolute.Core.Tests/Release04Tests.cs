@@ -49,6 +49,8 @@ public sealed class Release04Tests
         var driver=new DriverDevice("PCI\\VEN_1022","AMD GPIO Controller","SYSTEM","AMD","AMD","9.0.0.0","",[],true);
         var package=Assert.Single(VendorDrivers.ReadAsus(json,[driver]));
         Assert.Equal("7.1.2.3",package.Version);Assert.Null(package.Comparison);
+        var matched=Assert.Single(VendorDrivers.ReadAsus(json,[driver],new Dictionary<string,string>{{"AMD","6.1.2.3"}}));
+        Assert.Equal("6.1.2.3",matched.InstalledVersion);Assert.True(matched.Comparison>0);
     }
 
     [Fact]

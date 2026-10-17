@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Numerics;
 using Absolute.Core;
+using Absolute.App.Services;
 using Vortice.D3DCompiler;
 using Vortice.Direct3D;
 using Vortice.Direct3D11;
@@ -19,8 +20,9 @@ internal static class Gpu3DWorkload
     {
         var shaders=Shaders.Value;
         using var factory=DXGI.CreateDXGIFactory1<IDXGIFactory2>();
+        using var selected=GraphicsDiscovery.PreferredAdapter(factory);
         ID3D11Device device;ID3D11DeviceContext context;
-        try{D3D11.D3D11CreateDevice(IntPtr.Zero,DriverType.Hardware,DeviceCreationFlags.BgraSupport,[FeatureLevel.Level_11_0],out device,out _,out context).CheckError();}
+        try{D3D11.D3D11CreateDevice(selected,DriverType.Unknown,DeviceCreationFlags.BgraSupport,[FeatureLevel.Level_11_0],out device,out _,out context).CheckError();}
         catch(Exception error){throw new NotSupportedException("GPU 3D needs a hardware Direct3D 11 driver. A software renderer is not scored.",error);}
         using(device)
         using(context)
@@ -28,7 +30,7 @@ internal static class Gpu3DWorkload
         using(var adapter=dxgi.GetAdapter())
         {
             using var adapter1=adapter.QueryInterface<IDXGIAdapter1>();
-            if((adapter1.Description1.Flags&AdapterFlags.Software)!=0)throw new NotSupportedException("GPU 3D is unavailable on a software adapter.");
+            if(!GraphicsDiscovery.IsHardware(adapter1.Description1))throw new NotSupportedException("GPU 3D is unavailable on a software adapter.");
             var desc=new SwapChainDescription1{Width=1280,Height=720,Format=Format.R8G8B8A8_UNorm,BufferCount=2,BufferUsage=Usage.RenderTargetOutput,SampleDescription=new SampleDescription(1,0),Scaling=Scaling.Stretch,SwapEffect=SwapEffect.Discard,AlphaMode=AlphaMode.Ignore};
             using var swap=factory.CreateSwapChainForHwnd(device,window,desc);
             factory.MakeWindowAssociation(window,WindowAssociationFlags.IgnoreAltEnter);
