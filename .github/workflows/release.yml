@@ -70,6 +70,7 @@ jobs:
           foreach ($page in @('home', 'presets', 'playbooks', 'pc', 'drivers', 'benchmark')) {
             Copy-Item (Join-Path $output "desktop-$page.png") "./artifacts/ABSOLUTE-$page.png"
           }
+          Compress-Archive -Path "$output/*" -DestinationPath ./artifacts/ABSOLUTE-validation.zip
           Get-Content $reportPath
       - name: Summarize Windows smoke check
         if: always()
@@ -107,6 +108,7 @@ jobs:
             ./artifacts/ABSOLUTE-pc.png `
             ./artifacts/ABSOLUTE-drivers.png `
             ./artifacts/ABSOLUTE-benchmark.png `
+            ./artifacts/ABSOLUTE-validation.zip `
             --target $env:GITHUB_SHA `
             --title "ABSOLUTE $env:RELEASE_TAG" `
             --notes-file ./RELEASE_NOTES.md `
