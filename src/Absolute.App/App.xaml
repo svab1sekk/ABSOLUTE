@@ -23,7 +23,22 @@
 
     <Style TargetType="TextBox">
       <Setter Property="Background" Value="#17121E"/><Setter Property="Foreground" Value="#E9E0F1"/><Setter Property="BorderBrush" Value="#3A2C49"/><Setter Property="BorderThickness" Value="1"/><Setter Property="Padding" Value="12,8"/><Setter Property="FontSize" Value="13"/><Setter Property="MinHeight" Value="38"/><Setter Property="CaretBrush" Value="#C8A2F6"/><Setter Property="SelectionBrush" Value="#674884"/>
-      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="TextBox"><Border x:Name="Field" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" Padding="{TemplateBinding Padding}"><ScrollViewer x:Name="PART_ContentHost"/></Border><ControlTemplate.Triggers><Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Field" Property="BorderBrush" Value="#A77ACD"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="TextBox">
+            <Border x:Name="Field" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="8" Padding="{TemplateBinding Padding}">
+              <Grid>
+                <ScrollViewer x:Name="PART_ContentHost"/>
+                <TextBlock x:Name="Hint" Text="{TemplateBinding Tag}" Foreground="#9685A4" VerticalAlignment="Center" IsHitTestVisible="False" Visibility="Collapsed"/>
+              </Grid>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="Text" Value=""><Setter TargetName="Hint" Property="Visibility" Value="Visible"/></Trigger>
+              <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Field" Property="BorderBrush" Value="#A77ACD"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
     </Style>
     <Style TargetType="ComboBox">
       <Setter Property="Background" Value="#21182C"/><Setter Property="Foreground" Value="#EBE2F5"/><Setter Property="MinHeight" Value="38"/><Setter Property="FontSize" Value="13"/>

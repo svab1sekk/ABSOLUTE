@@ -92,7 +92,7 @@ internal static class Ui
 
     public static TextBox Search(string text,string hint,Action<string> changed)
     {
-        var box=new TextBox{Text=text,ToolTip=hint,MinWidth=190,VerticalContentAlignment=VerticalAlignment.Center};
+        var box=new TextBox{Text=text,Tag=hint,ToolTip=hint,MinWidth=190,VerticalContentAlignment=VerticalAlignment.Center};
         System.Windows.Automation.AutomationProperties.SetName(box,hint);
         box.TextChanged+=(_,_)=>changed(box.Text);return box;
     }

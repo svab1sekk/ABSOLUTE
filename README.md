@@ -2,7 +2,7 @@
 
 Native Windows 10/11 desktop utility. Black and purple, custom window controls, and no bundled browser.
 
-[Download Windows x64](https://github.com/svab1sekk/ABSOLUTE/releases/download/v0.2.0-preview.1/ABSOLUTE-win-x64.zip) · [Release page](https://github.com/svab1sekk/ABSOLUTE/releases/tag/v0.2.0-preview.1)
+[Download Windows x64](https://github.com/svab1sekk/ABSOLUTE/releases/download/v0.2.0-preview.2/ABSOLUTE-win-x64.zip) · [Release page](https://github.com/svab1sekk/ABSOLUTE/releases/tag/v0.2.0-preview.2)
 
 Extract the entire ZIP and launch `ABSOLUTE.exe`. .NET is included. Windows 10 version 1607+ and Windows 11 are supported; ARM64 builds are available from the Windows workflow. Releases are unsigned previews.
 

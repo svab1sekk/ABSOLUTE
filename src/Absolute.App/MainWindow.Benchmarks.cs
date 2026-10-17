@@ -17,6 +17,7 @@ public partial class MainWindow
         var choices=new StackPanel{Orientation=Orientation.Horizontal};choices.Children.Add(cpu);choices.Children.Add(gpu);choices.Children.Add(ram);
         var progress=new ProgressBar{Maximum=1,Margin=new Thickness(0,20,0,16)};
         var state=Text(benchmarkCancellation is null?"Choose components to test":"Benchmark running…",13,"#B3A0C6");
+        var cancel=B("Cancel",()=>benchmarkCancellation?.Cancel());cancel.Margin=new Thickness(12,0,0,0);cancel.IsEnabled=benchmarkCancellation is not null;
         var start=B("Run benchmark",async()=>
         {
             if(benchmarkCancellation is not null)return;
@@ -26,7 +27,7 @@ public partial class MainWindow
             benchmarkNotices.Clear();var completed=0;
             try
             {
-                cpu.IsEnabled=gpu.IsEnabled=ram.IsEnabled=false;
+                cpu.IsEnabled=gpu.IsEnabled=ram.IsEnabled=false;cancel.IsEnabled=true;
                 for(var i=0;i<tests.Count;i++)
                 {
                     cancellation.Token.ThrowIfCancellationRequested();var index=i;
@@ -49,11 +50,10 @@ public partial class MainWindow
             finally{benchmarkCancellation=null;RefreshPage("Benchmark");}
         },true);
         start.IsEnabled=benchmarkCancellation is null;
-        var cancel=B("Cancel",()=>benchmarkCancellation?.Cancel());cancel.Margin=new Thickness(12,0,0,0);
         var buttons=new StackPanel{Orientation=Orientation.Horizontal};buttons.Children.Add(start);buttons.Children.Add(cancel);
         Page.Children.Add(Card(Stack(Text("Component tests",22,weight:FontWeights.SemiBold),Space(20),choices,progress,state,Space(18),buttons)));
         foreach(var notice in benchmarkNotices)Page.Children.Add(Card(Text(notice,12,"#C99AB3")));
-        Page.Children.Add(Text("CPU measures parallel hashing throughput. GPU renders 1,600 translucent 2D sprites using hardware Direct2D. RAM measures memory-copy throughput. Results measure these workloads, not an invented overall score.",12,"#A396AF"));
+        Page.Children.Add(Text("CPU: hashing throughput. GPU: hardware 2D rendering FPS. RAM: memory-copy throughput.",12,"#A396AF"));
         Section("Results");
         var results=preferences.ComponentBenchmarks.Count>0?preferences.ComponentBenchmarks:preferences.Benchmarks.Select(b=>new ComponentBenchmarkResult("RAM",b.MegabytesPerSecond,"MB/s",b.DurationSeconds,b.RecordedAt,"Legacy memory-copy run")).ToList();
         if(results.Count==0){Page.Children.Add(Card(Text("No benchmark results yet",13,"#A396AF")));return;}
