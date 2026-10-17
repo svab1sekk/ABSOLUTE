@@ -14,6 +14,8 @@ public sealed class PreferenceStore(string path)
                 ? JsonSerializer.Deserialize<AppPreferences>(File.ReadAllText(path)) ?? new()
                 : new AppPreferences();
             preferences.Benchmarks ??= [];
+            preferences.CustomGames ??= [];
+            preferences.ComponentBenchmarks ??= [];
             return preferences;
         }
         catch (JsonException) { return new(); }

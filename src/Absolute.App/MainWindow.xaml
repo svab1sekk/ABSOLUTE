@@ -35,7 +35,7 @@
           <RowDefinition Height="76" />
         </Grid.RowDefinitions>
         <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,14,0,0">
-          <Image Source="Assets/logo.png" Width="78" Height="78" RenderOptions.BitmapScalingMode="HighQuality" />
+          <Image x:Name="SidebarLogo" Source="Assets/logo.png" Width="78" Height="78" Opacity="0" RenderOptions.BitmapScalingMode="HighQuality" />
           <TextBlock Text="A B S O L U T E" FontSize="13" FontWeight="SemiBold" Foreground="#C3B1D6"
                      HorizontalAlignment="Center" Margin="0,16,0,0" />
         </StackPanel>
@@ -77,5 +77,13 @@
             BorderThickness="1" MaxWidth="560">
       <TextBlock x:Name="ToastText" Foreground="#EBE2F5" />
     </Border>
+    <Grid x:Name="IntroLayer" Grid.RowSpan="2" Grid.ColumnSpan="2" IsHitTestVisible="False">
+      <Border x:Name="IntroBackdrop" Background="#0B090F" />
+      <Image x:Name="IntroLogo" Source="Assets/logo.png" Width="96" Height="96"
+             HorizontalAlignment="Center" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5"
+             RenderOptions.BitmapScalingMode="HighQuality">
+        <Image.RenderTransform><TransformGroup><ScaleTransform x:Name="IntroScale" /><RotateTransform x:Name="IntroRotation" /><TranslateTransform x:Name="IntroTranslation" /></TransformGroup></Image.RenderTransform>
+      </Image>
+    </Grid>
   </Grid>
 </Window>

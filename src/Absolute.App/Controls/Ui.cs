@@ -56,6 +56,8 @@ internal static class Ui
     {
         var data = name switch
         {
+            "Home" => "M 2,11 L 12,2 L 22,11 M 5,9 V 22 H 10 V 15 H 15 V 22 H 20 V 9",
+            "Drivers" => "M 5,2 H 19 V 22 H 5 Z M 9,6 H 15 M 9,10 H 15 M 9,15 H 15 V 19 H 9 Z M 2,7 H 5 M 19,7 H 22 M 2,17 H 5 M 19,17 H 22",
             "System" => "M 5,5 H 19 V 19 H 5 Z M 9,9 H 15 V 15 H 9 Z M 9,1 V 5 M 15,1 V 5 M 9,19 V 23 M 15,19 V 23 M 1,9 H 5 M 1,15 H 5 M 19,9 H 23 M 19,15 H 23",
             "Network" => "M 12,4 V 11 M 4,16 V 12 H 20 V 16 M 1,16 H 7 V 22 H 1 Z M 9,16 H 15 V 22 H 9 Z M 17,16 H 23 V 22 H 17 Z M 9,1 H 15 V 6 H 9 Z",
             "Presets" => "M 3,6 H 21 M 3,12 H 21 M 3,18 H 21 M 8,3 V 9 M 16,9 V 15 M 10,15 V 21",
@@ -86,5 +88,12 @@ internal static class Ui
             Child = Columns((glyph, -1), (labels, 1), (action, -1)), Padding = new Thickness(0, 17, 0, 17),
             BorderBrush = Brush("#292230"), BorderThickness = new Thickness(0, 0, 0, last ? 0 : 1)
         };
+    }
+
+    public static TextBox Search(string text,string hint,Action<string> changed)
+    {
+        var box=new TextBox{Text=text,ToolTip=hint,MinWidth=190,VerticalContentAlignment=VerticalAlignment.Center};
+        System.Windows.Automation.AutomationProperties.SetName(box,hint);
+        box.TextChanged+=(_,_)=>changed(box.Text);return box;
     }
 }

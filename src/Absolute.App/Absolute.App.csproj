@@ -8,8 +8,14 @@
     <RootNamespace>Absolute.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets/absolute.ico</ApplicationIcon>
-    <Version>0.1.1</Version>
+    <Version>0.2.0</Version>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="../Absolute.Core/Absolute.Core.csproj" /></ItemGroup>
   <ItemGroup><Resource Include="Assets/logo.png" Condition="Exists('Assets/logo.png')" /></ItemGroup>
+  <ItemGroup><Resource Include="Assets/*-banners.png" /></ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Management" Version="8.0.0" />
+    <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="8.0.0" />
+    <PackageReference Include="Vortice.Direct2D1" Version="3.6.2" />
+  </ItemGroup>
 </Project>

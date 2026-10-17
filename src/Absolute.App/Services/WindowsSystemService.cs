@@ -42,8 +42,8 @@ internal sealed class WindowsSystemService
         var display = new DisplayDevice { Size = Marshal.SizeOf<DisplayDevice>() };
         var graphics = EnumDisplayDevices(null, 0, ref display, 0) ? display.DeviceString : "Unavailable";
         var disk = new DriveInfo(Path.GetPathRoot(Environment.SystemDirectory)!);
-        return new(cpu?.GetValue("ProcessorNameString")?.ToString()?.Trim() ?? "Unavailable", graphics,
-            $"{version} {os?.GetValue("DisplayVersion")} · build {build}", Environment.MachineName,
+        return new(HardwareNames.Clean(cpu?.GetValue("ProcessorNameString")?.ToString()?.Trim() ?? "Unavailable"), HardwareNames.Clean(graphics),
+            $"{version} {os?.GetValue("DisplayVersion")}", Environment.MachineName,
             Environment.ProcessorCount, ReadMemory().TotalPhysical, disk.TotalSize, disk.AvailableFreeSpace);
     }
 
