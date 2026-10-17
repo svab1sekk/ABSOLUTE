@@ -55,7 +55,7 @@ public partial class MainWindow : Window
             var item=new RadioButton{Content=content,GroupName="Pages",Style=(Style)FindResource("Nav"),Tag=name};
             System.Windows.Automation.AutomationProperties.SetName(item,name);item.Checked+=(_,_)=>Navigate(name);Navigation.Children.Add(item);
         }
-        SettingsNav.Content=Icon("Settings",20);SettingsNav.Checked+=(_,_)=>Navigate("Settings");((RadioButton)Navigation.Children[0]).IsChecked=true;
+        SettingsNav.Content=Icon("Settings",22);SettingsNav.Checked+=(_,_)=>Navigate("Settings");((RadioButton)Navigation.Children[0]).IsChecked=true;
         driverMonitor.Tick+=async(_,_)=>await Safe(RunDriverCheckAsync);
         toastTimer.Tick+=(_,_)=>{Toast.Visibility=Visibility.Collapsed;toastTimer.Stop();};
         monitor.Tick+=async(_,_)=>await SampleAsync();gameMonitor.Tick+=async(_,_)=>await DetectGameAsync();
@@ -173,11 +173,11 @@ public partial class MainWindow : Window
         await Dispatcher.Yield(DispatcherPriority.Render);
         var completion=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var target=SidebarLogo.TranslatePoint(new Point(SidebarLogo.ActualWidth/2,SidebarLogo.ActualHeight/2),this);
-        var from=IntroLogo.TranslatePoint(new Point(48,48),this);
+        var from=IntroLogo.TranslatePoint(new Point(IntroLogo.ActualWidth/2,IntroLogo.ActualHeight/2),this);
         var duration=TimeSpan.FromMilliseconds(420);var ease=new CubicEase{EasingMode=EasingMode.EaseInOut};
         DoubleAnimation Move(double end)=>new(0,end,duration){BeginTime=TimeSpan.FromMilliseconds(480),EasingFunction=ease};
         IntroTranslation.BeginAnimation(TranslateTransform.XProperty,Move(target.X-from.X));IntroTranslation.BeginAnimation(TranslateTransform.YProperty,Move(target.Y-from.Y));
-        var scale=new DoubleAnimation(1,78d/96,duration){BeginTime=TimeSpan.FromMilliseconds(480),EasingFunction=ease};
+        var scale=new DoubleAnimation(1,SidebarLogo.ActualWidth/IntroLogo.ActualWidth,duration){BeginTime=TimeSpan.FromMilliseconds(480),EasingFunction=ease};
         IntroScale.BeginAnimation(ScaleTransform.ScaleXProperty,scale);IntroScale.BeginAnimation(ScaleTransform.ScaleYProperty,scale);
         IntroBackdrop.BeginAnimation(OpacityProperty,new DoubleAnimation(1,0,TimeSpan.FromMilliseconds(360)){BeginTime=TimeSpan.FromMilliseconds(480)});
         var rotate=new DoubleAnimation(0,360,TimeSpan.FromMilliseconds(480)){EasingFunction=new CubicEase{EasingMode=EasingMode.EaseInOut}};
@@ -194,6 +194,7 @@ public partial class MainWindow : Window
     {
         selectedPage=name;cpuValue=memoryValue=memoryDetail=gpuValue=cpuTemperature=gpuTemperature=driverHomeStatus=null;cpuChart=gpuChart=memoryChart=null;
         Page.Children.Clear();PageScroll.ScrollToTop();
+        Page.MaxWidth=name switch{"PC"=>820,"Drivers"=>900,"Benchmark"=>760,_=>1400};
         var title=Text(name,34,weight:FontWeights.SemiBold);title.Margin=new Thickness(0,0,0,26);Page.Children.Add(title);
         switch(name)
         {
@@ -219,7 +220,11 @@ public partial class MainWindow : Window
     private static void Remember(Queue<double> history,double value){history.Enqueue(value);while(history.Count>50)history.Dequeue();}
     private static FrameworkElement Space(double height)=>new Border{Height=height};
     private void Section(string title){var text=Text(title,17,weight:FontWeights.SemiBold);text.Margin=new Thickness(0,10,0,14);Page.Children.Add(text);}
-    private static Grid Info(string label,string value){var result=Columns((Text(label,12,"#A396AF"),.75),(Text(value,13),1));result.Margin=new Thickness(0,7,0,7);return result;}
+    private static Grid Info(string label,string value)
+    {
+        var caption=Text(label,12,"#A396AF");caption.Width=90;caption.Margin=new Thickness(0,0,10,0);
+        var result=Columns((caption,-1),(Text(value,13),1));result.Margin=new Thickness(0,7,0,7);return result;
+    }
     private static void OpenUrl(string url)=>Process.Start(new ProcessStartInfo(url){UseShellExecute=true});
     private void MinimizeClick(object sender,RoutedEventArgs e)=>WindowState=WindowState.Minimized;
     private void MaximizeClick(object sender,RoutedEventArgs e)=>WindowState=WindowState==WindowState.Maximized?WindowState.Normal:WindowState.Maximized;

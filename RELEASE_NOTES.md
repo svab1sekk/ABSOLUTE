@@ -1,13 +1,11 @@
-# ABSOLUTE 0.4.0 Preview
+# ABSOLUTE 0.5.0 Preview
 
-- Drivers: displays first, CPU/GPU/motherboard together. Removed input/audio devices and Windows Update driver integration. Manufacturer catalog checks show matched versions and direct vendor download links where available, with manufacturer support for catalogs that cannot be compared automatically.
-- PC: displays, core components and storage in separate groups. Combined RAM remains one card; audio, keyboard and mouse are removed.
-- Benchmark: real Direct3D 11 scene, CPU and larger RAM workloads, stage progress, and one expandable result per run with component grades and a combined workload score. Partial runs stay clearly labelled.
-- Presets: smaller artwork tiles open a per-game power-plan/priority editor. Detection is always automatic. Official artwork refreshes daily; Fortnite uses live season art and Riot games use current update articles.
-- Playbooks: 11 genuine OS projects, official project avatars, maker credits and three brief facts each.
-- Home: matching CPU, GPU and RAM graphs. Removed Ethernet/IP and machine panels; retained Quick access and Tools.
-- Standard title-bar font, seamless logo bridge, and a visible centered rotation that docks into the sidebar on every launch.
+- Narrower PC, Drivers and Benchmark cards. Incomplete hardware rows are centered, including a single last storage card. PC values sit nearer their labels.
+- Scrollbars are hidden throughout; scrolling still works. Larger title bar, normal spaced title, padded window controls and red close hover. Larger centered sidebar branding and lower navigation; refined settings gear.
+- Drivers buttons use Drivers and Download. Removed the extra manufacturer footer, View packages and long fallback descriptions. TITAN ARMY monitor destinations are resolved from official product data for the exact model rather than opening a search page.
+- Expanded game profiles from 32 to 158 titles. Steam installation detection distinguishes games using shared engine executable names. Cards use publisher artwork with bounded image decoding and official Steam cover fallbacks.
+- Expanded Playbooks from 11 to 22 real Windows projects, with project avatars, authors and three short facts.
 
-Extract the entire ZIP and run **ABSOLUTE.exe**. Keep the included folders beside it. The temperature driver is bundled; Windows requests administrator permission for restricted sensors after the window appears. Unsupported hardware may not expose temperatures. Some manufacturer catalogs require opening their support page; no unverified driver is labelled current and nothing is installed automatically from Drivers. OS projects open their official pages.
+Extract the entire ZIP and run **ABSOLUTE.exe**. Keep its included folders together. The temperature driver is bundled; Windows requests administrator permission for restricted sensors after the window appears. Home content is retained. System and Network remain empty.
 
-Benchmark grades use ABSOLUTE's documented workload targets, not third-party rankings or predicted game FPS. See the expanded result or README for the scale.
+Driver packages open official download links and are not installed automatically. An unavailable vendor comparison is never labelled current. OS projects open their official pages. Benchmark grades use ABSOLUTE's documented workload targets rather than third-party rankings or predicted game FPS.

@@ -7,7 +7,7 @@
         Background="#0B090F" FontFamily="Segoe UI Variable Text, Segoe UI" FontSize="14"
         UseLayoutRounding="True" SnapsToDevicePixels="True">
   <shell:WindowChrome.WindowChrome>
-    <shell:WindowChrome CaptionHeight="38" ResizeBorderThickness="6" CornerRadius="0"
+    <shell:WindowChrome CaptionHeight="52" ResizeBorderThickness="6" CornerRadius="0"
                          GlassFrameThickness="0" UseAeroCaptionButtons="False" />
   </shell:WindowChrome.WindowChrome>
   <Grid>
@@ -19,7 +19,7 @@
       </LinearGradientBrush>
     </Grid.Background>
     <Grid.RowDefinitions>
-      <RowDefinition Height="38" />
+      <RowDefinition Height="52" />
       <RowDefinition Height="*" />
     </Grid.RowDefinitions>
     <Grid.ColumnDefinitions>
@@ -30,13 +30,13 @@
     <Border Grid.RowSpan="2" Background="#0B0A0E" BorderBrush="#211B29" BorderThickness="0,0,1,0">
       <Grid>
         <Grid.RowDefinitions>
-          <RowDefinition Height="174" />
+          <RowDefinition Height="214" />
           <RowDefinition Height="*" />
           <RowDefinition Height="76" />
         </Grid.RowDefinitions>
-        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,14,0,0">
-          <Image x:Name="SidebarLogo" Source="Assets/logo.png" Width="78" Height="78" Opacity="0" RenderOptions.BitmapScalingMode="HighQuality" />
-          <TextBlock Text="A B S O L U T E" FontSize="13" FontWeight="SemiBold" Foreground="#C3B1D6"
+        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,28,0,0">
+          <Image x:Name="SidebarLogo" Source="Assets/logo.png" Width="94" Height="94" Opacity="0" RenderOptions.BitmapScalingMode="HighQuality" />
+          <TextBlock Text="A B S O L U T E" FontSize="15" FontWeight="SemiBold" Foreground="#C3B1D6"
                      HorizontalAlignment="Center" Margin="0,16,0,0" />
         </StackPanel>
         <StackPanel x:Name="Navigation" Grid.Row="1" />
@@ -54,19 +54,19 @@
     </ScrollViewer>
 
     <Grid Grid.ColumnSpan="2">
-      <TextBlock Text="ABSOLUTE" FontFamily="Segoe UI" FontSize="12" FontWeight="SemiBold"
-                 Foreground="#C3B1D6" Margin="16,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" />
-      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" shell:WindowChrome.IsHitTestVisibleInChrome="True">
+      <TextBlock Text="A B S O L U T E" FontFamily="Segoe UI Variable Display, Segoe UI" FontSize="14" FontWeight="Normal"
+                 Foreground="#C3B1D6" Margin="20,0,0,0" HorizontalAlignment="Left" VerticalAlignment="Center" />
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,10,0" shell:WindowChrome.IsHitTestVisibleInChrome="True">
         <Button x:Name="MinimizeButton" Style="{StaticResource Caption}" ToolTip="Minimize"
                 AutomationProperties.Name="Minimize" Click="MinimizeClick">
-          <Path Stroke="#B4AABD" StrokeThickness="1" Data="M 0,0 L 10,0" />
+          <Path Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.2" Data="M 0,0 L 10,0" />
         </Button>
         <Button x:Name="MaximizeButton" Style="{StaticResource Caption}" ToolTip="Maximize"
                 AutomationProperties.Name="Maximize or restore" Click="MaximizeClick">
-          <Path Stroke="#B4AABD" StrokeThickness="1" Data="M 0,3 L 8,3 L 8,11 L 0,11 Z M 3,3 L 3,0 L 11,0 L 11,8 L 8,8" />
+          <Path Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.2" Data="M 0,3 L 8,3 L 8,11 L 0,11 Z M 3,3 L 3,0 L 11,0 L 11,8 L 8,8" />
         </Button>
-        <Button Style="{StaticResource Caption}" ToolTip="Close" AutomationProperties.Name="Close" Click="CloseClick">
-          <Path Stroke="#B4AABD" StrokeThickness="1.2" Data="M 0,0 L 10,10 M 10,0 L 0,10" />
+        <Button x:Name="CloseButton" Style="{StaticResource CloseCaption}" ToolTip="Close" AutomationProperties.Name="Close" Click="CloseClick">
+          <Path Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.2" Data="M 0,0 L 10,10 M 10,0 L 0,10" />
         </Button>
       </StackPanel>
     </Grid>
@@ -79,7 +79,7 @@
     </Border>
     <Grid x:Name="IntroLayer" Grid.RowSpan="2" Grid.ColumnSpan="2" IsHitTestVisible="False">
       <Border x:Name="IntroBackdrop" Background="#0B090F" />
-      <Image x:Name="IntroLogo" Source="Assets/logo.png" Width="96" Height="96"
+      <Image x:Name="IntroLogo" Source="Assets/logo.png" Width="112" Height="112"
              HorizontalAlignment="Center" VerticalAlignment="Center" RenderTransformOrigin="0.5,0.5"
              RenderOptions.BitmapScalingMode="HighQuality">
         <Image.RenderTransform><TransformGroup><ScaleTransform x:Name="IntroScale" /><RotateTransform x:Name="IntroRotation" /><TranslateTransform x:Name="IntroTranslation" /></TransformGroup></Image.RenderTransform>

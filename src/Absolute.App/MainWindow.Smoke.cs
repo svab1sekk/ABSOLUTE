@@ -17,6 +17,7 @@ public partial class MainWindow
         var success=false;var errors=new List<string>();var rendered=new List<string>();
         string gpuCheck="Not run";ComponentBenchmarkResult? gpuResult=null;
         var gameProfileCheck="Not run";var gpu3DCheck="Not run";ComponentBenchmarkResult? gpu3DResult=null;var shaderCheck="Not run";
+        VendorDriverResult? monitorLinkCheck=null;bool? closeHover=null;
         try
         {
             Directory.CreateDirectory(output);
@@ -25,7 +26,9 @@ public partial class MainWindow
             await temperatures.StartAsync(false);
             try{await temperatures.FirstReading.WaitAsync(TimeSpan.FromSeconds(110));}catch(TimeoutException){errors.Add("Built-in sensor helper did not respond.");}
             if(temperatures.Snapshot?.Ready!=true)errors.Add("Built-in sensor initialization failed: "+temperatures.Status);
-            try{await Task.WhenAll(Artwork.WarmAsync(Catalogs.Games),Artwork.WarmProjectsAsync()).WaitAsync(TimeSpan.FromSeconds(65));}catch(TimeoutException){/* Publisher results are reported separately; offline access must not prevent rendering. */}
+            var monitorLookup=Services.DriverService.SearchAsync(new("Monitor","TITAN ARMY P25S Plus",[],"monitor-link-check"),[],CancellationToken.None);
+            try{await Task.WhenAll(Artwork.WarmAsync(Catalogs.Games),Artwork.WarmProjectsAsync()).WaitAsync(TimeSpan.FromSeconds(95));}catch(TimeoutException){/* Publisher results are reported separately; offline access must not prevent rendering. */}
+            monitorLinkCheck=await monitorLookup;
             if(hardware is null||hardware.Memory==0)errors.Add("No physical memory reported.");
             if(snapshot is null||snapshot.MemoryTotal==0)errors.Add("Live memory readings unavailable.");
             if(!powerPlans.Any(p=>p.Active))errors.Add("No active Windows power plan discovered.");
@@ -70,6 +73,13 @@ public partial class MainWindow
                     if(page=="PC"&&inventory?.Parts.Count(p=>p.Category=="Memory")!=1)errors.Add("PC memory is not combined into one card.");
                     if(page=="PC"&&inventory?.Parts.Any(p=>p.Category is "Volume" or "Firmware" or "Network" or "Cooling" or "Audio" or "Mouse" or "Keyboard")==true)errors.Add("PC contains an excluded hardware category.");
                     Capture($"{size.Name}-{page.ToLowerInvariant()}.png");
+                    if(page is "Presets" or "Playbooks")
+                    {
+                        PageScroll.ScrollToEnd();await Dispatcher.InvokeAsync(UpdateLayout,DispatcherPriority.ApplicationIdle);
+                        if(PageScroll.ExtentHeight>PageScroll.ViewportHeight&&PageScroll.VerticalOffset<=0)errors.Add(page+" cannot scroll to the last item.");
+                        if(PageScroll.ComputedVerticalScrollBarVisibility==Visibility.Visible)errors.Add(page+" shows a scrollbar.");
+                        Capture($"{size.Name}-{page.ToLowerInvariant()}-last-row.png");PageScroll.ScrollToTop();
+                    }
                     if(page=="Presets")
                     {
                         editingGame=Catalogs.Games[0].Id;Navigate("Presets");await Dispatcher.InvokeAsync(UpdateLayout,DispatcherPriority.ApplicationIdle);
@@ -81,6 +91,12 @@ public partial class MainWindow
                         await Dispatcher.InvokeAsync(UpdateLayout,DispatcherPriority.ApplicationIdle);Capture($"{size.Name}-benchmark-details.png");
                     }
                 }
+            }
+            var closeCenter=CloseButton.PointToScreen(new Point(CloseButton.ActualWidth/2,CloseButton.ActualHeight/2));
+            if(SetCursorPos((int)closeCenter.X,(int)closeCenter.Y))
+            {
+                await Task.Delay(150);closeHover=CloseButton.IsMouseOver;
+                Capture("compact-close-hover.png");SetCursorPos(1,1);
             }
             void Capture(string filename)
             {
@@ -105,6 +121,8 @@ public partial class MainWindow
                     HardwareParts=inventory?.Parts.Count,MainDriverComponents=MainDriverComponents().Select(c=>new{c.Part.Category,c.Part.Name}),PowerPlans=powerPlans.Count,
                     Gpu2DCheck=gpuCheck,Gpu2DResult=gpuResult,Gpu3DCheck=gpu3DCheck,Gpu3DResult=gpu3DResult,ShaderValidation=shaderCheck,
                     GameProfileCheck=gameProfileCheck,
+                    GameCatalogCount=Catalogs.Games.Count,PlaybookCatalogCount=Catalogs.Playbooks.Count,CloseButtonHovered=closeHover,
+                    ExactMonitorLinkCheck=new{Model="TITAN ARMY P25S Plus",Url=monitorLinkCheck?.Source,Status=monitorLinkCheck?.Status},
                     OnlineDriverCheck="Manufacturer catalogs; comparison requires matched physical hardware. No Windows Update driver API is used.",
                     TemperatureMonitor=temperatures.Status,BundledSensorDriverVerified=Services.TemperatureHost.BundledDriverIsValid(),
                     ArtworkSummary=new
@@ -122,6 +140,10 @@ public partial class MainWindow
             finally{closingAllowed=true;Application.Current.Shutdown(success?0:1);}
         }
     }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    [return:System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool SetCursorPos(int x,int y);
 
     private static async Task CheckGameProfileAsync()
     {

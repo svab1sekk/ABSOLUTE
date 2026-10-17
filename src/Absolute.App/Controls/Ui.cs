@@ -73,12 +73,22 @@ internal static class Ui
             "Playbooks" => "M 5,3 H 15 L 20,8 V 22 H 5 Z M 15,3 V 8 H 20 M 9,12 H 16 M 9,16 H 14",
             "Benchmark" => "M 3,19 A 10,10 0 1 1 21,19 M 12,15 L 17,8 M 5,15 H 7 M 6,8 L 8,10 M 12,5 V 7 M 17,16 H 19",
             "PC" => "M 2,3 H 22 V 17 H 2 Z M 12,17 V 22 M 7,22 H 17",
-            "Settings" => "M 9,2 H 15 L 16,5 L 19,6 L 22,8 L 20,12 L 22,16 L 19,18 L 16,19 L 15,22 H 9 L 8,19 L 5,18 L 2,16 L 4,12 L 2,8 L 5,6 L 8,5 Z M 16,12 A 4,4 0 1 1 8,12 A 4,4 0 1 1 16,12",
+            "Settings" => GearPath(),
             "Arrow" => "M 5,12 H 19 M 13,6 L 19,12 L 13,18",
             _ => "M 5,12 L 10,17 L 20,6"
         };
         var path = new Path { Data = Geometry.Parse(data), Stroke = Brush(color), StrokeThickness = 1.5, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round, StrokeLineJoin = PenLineJoin.Round };
         return new Viewbox { Width = size, Height = size, Child = path, Stretch = Stretch.Uniform };
+    }
+
+    private static string GearPath()
+    {
+        var points=Enumerable.Range(0,40).Select(i=>
+        {
+            var radius=i%4 is 1 or 2?10.5:8.5;var angle=-Math.PI/2+i*Math.PI/20;
+            return FormattableString.Invariant($"{12+Math.Cos(angle)*radius:0.###},{12+Math.Sin(angle)*radius:0.###}");
+        }).ToArray();
+        return "M "+points[0]+" L "+string.Join(" L ",points.Skip(1))+" Z M 16,12 A 4,4 0 1 1 8,12 A 4,4 0 1 1 16,12";
     }
 
     public static Border Pill(string label, string color = "#BBA0D8") => new()

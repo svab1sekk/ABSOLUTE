@@ -22,7 +22,7 @@ internal static class Artwork
     private static readonly string Cache=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Absolute","Artwork","publisher-v2");
     public static IReadOnlyDictionary<string,string> Status=>Results;
 
-    static Artwork()=>Client.DefaultRequestHeaders.UserAgent.ParseAdd("ABSOLUTE/0.4 (+https://github.com/svab1sekk/ABSOLUTE)");
+    static Artwork()=>Client.DefaultRequestHeaders.UserAgent.ParseAdd("ABSOLUTE/0.5 (+https://github.com/svab1sekk/ABSOLUTE)");
 
     public static Grid Scene(GameDefinition game,double height,bool hero=false)
     {
@@ -33,15 +33,15 @@ internal static class Artwork
         _=ApplyAsync();return scene;
         async Task ApplyAsync()
         {
-            var bitmap=await GetAsync(game);
+            var bitmap=await GetAsync(game,hero?1400:480);
             if(bitmap is not null)scene.Background=new ImageBrush(bitmap){Stretch=Stretch.UniformToFill,AlignmentX=hero?AlignmentX.Right:AlignmentX.Center};
         }
     }
 
-    public static Task<BitmapSource?> GetAsync(GameDefinition game)=>Images.GetOrAdd(game.Id,_=>Task.Run(()=>LoadAsync(game)));
-    public static Task WarmAsync(IEnumerable<GameDefinition> games)=>Task.WhenAll(games.Select(GetAsync));
+    public static Task<BitmapSource?> GetAsync(GameDefinition game,int width=480)=>Images.GetOrAdd(game.Id+":"+width,_=>Task.Run(()=>LoadAsync(game,width)));
+    public static Task WarmAsync(IEnumerable<GameDefinition> games)=>Task.WhenAll(games.Select(game=>GetAsync(game)));
 
-    private static async Task<BitmapSource?> LoadAsync(GameDefinition game)
+    private static async Task<BitmapSource?> LoadAsync(GameDefinition game,int width)
     {
         var source=GameArtwork.Source(game);if(source is null){Results[game.Id]="No publisher artwork";return null;}
         var resolved=source;
@@ -52,13 +52,16 @@ internal static class Artwork
         {
             if(File.Exists(path)&&DateTime.UtcNow-File.GetLastWriteTimeUtc(path)<TimeSpan.FromHours(24))
             {
-                try{var cached=Decode(await File.ReadAllBytesAsync(path));Results[game.Id]="Cached publisher artwork";return cached;}
+                try{var cached=Decode(await File.ReadAllBytesAsync(path),width);Results[game.Id]="Cached publisher artwork";return cached;}
                 catch(Exception ex) when(ex is IOException or NotSupportedException or FileFormatException){File.Delete(path);}
             }
             await Downloads.WaitAsync();
             try
             {
-                var uri=new Uri(source);var response=await FetchAsync(uri);
+                var uri=new Uri(source);(byte[] Bytes,bool Html) response;
+                try{response=await FetchAsync(uri);}
+                catch(HttpRequestException)when(game.SteamAppId is int)
+                {uri=new Uri($"https://cdn.akamai.steamstatic.com/steam/apps/{game.SteamAppId}/header.jpg");resolved=uri.ToString();response=await FetchAsync(uri);}
                 if(game.Id=="fortnite")
                 {
                     using var content=JsonDocument.Parse(response.Bytes);var root=content.RootElement;
@@ -86,7 +89,7 @@ internal static class Artwork
                     resolved=uri.ToString();response=await FetchAsync(uri);
                 }
                 if(response.Html)throw new InvalidDataException("The publisher returned a page instead of an image.");
-                var bitmap=Decode(response.Bytes);Directory.CreateDirectory(Cache);
+                var bitmap=Decode(response.Bytes,width);Directory.CreateDirectory(Cache);
                 var temporary=path+"."+Guid.NewGuid().ToString("N")+".tmp";
                 try{await File.WriteAllBytesAsync(temporary,response.Bytes);File.Move(temporary,path,true);}finally{if(File.Exists(temporary))File.Delete(temporary);}
                 Results[game.Id]="Publisher artwork · "+resolved;return bitmap;
@@ -96,14 +99,14 @@ internal static class Artwork
         catch(Exception ex) when(ex is HttpRequestException or IOException or InvalidDataException or UnauthorizedAccessException or TaskCanceledException or NotSupportedException or UriFormatException or FileFormatException or JsonException or ArgumentException or InvalidOperationException or System.Runtime.InteropServices.COMException)
         {
             if(File.Exists(path))
-                try{var cached=Decode(await File.ReadAllBytesAsync(path));Results[game.Id]="Cached artwork · refresh unavailable";return cached;}catch(Exception cacheError)when(cacheError is IOException or FileFormatException or NotSupportedException){}
+                try{var cached=Decode(await File.ReadAllBytesAsync(path),width);Results[game.Id]="Cached artwork · refresh unavailable";return cached;}catch(Exception cacheError)when(cacheError is IOException or FileFormatException or NotSupportedException){}
             Results[game.Id]=ex.Message+" · "+resolved;return null;
         }
     }
 
-    private static BitmapSource Decode(byte[] bytes)
+    private static BitmapSource Decode(byte[] bytes,int width)
     {
-        using var stream=new MemoryStream(bytes,false);var bitmap=new BitmapImage();bitmap.BeginInit();bitmap.CacheOption=BitmapCacheOption.OnLoad;bitmap.DecodePixelWidth=1600;bitmap.StreamSource=stream;bitmap.EndInit();bitmap.Freeze();return bitmap;
+        using var stream=new MemoryStream(bytes,false);var bitmap=new BitmapImage();bitmap.BeginInit();bitmap.CacheOption=BitmapCacheOption.OnLoad;bitmap.DecodePixelWidth=width;bitmap.StreamSource=stream;bitmap.EndInit();bitmap.Freeze();return bitmap;
     }
 
     private static async Task<(byte[] Bytes,bool Html)> FetchAsync(Uri uri)
@@ -142,10 +145,10 @@ internal static class Artwork
         async Task Load()
         {
             var definition=new GameDefinition("project-"+project.Id,project.Name,[],project.Accent,0,ArtworkUrl:project.AvatarUrl);
-            image.Source=await GetAsync(definition);
+            image.Source=await GetAsync(definition,128);
         }
     }
-    public static Task WarmProjectsAsync()=>Task.WhenAll(Catalogs.Playbooks.Where(p=>p.AvatarUrl is not null).Select(p=>GetAsync(new GameDefinition("project-"+p.Id,p.Name,[],p.Accent,0,ArtworkUrl:p.AvatarUrl))));
+    public static Task WarmProjectsAsync()=>Task.WhenAll(Catalogs.Playbooks.Where(p=>p.AvatarUrl is not null).Select(p=>GetAsync(new GameDefinition("project-"+p.Id,p.Name,[],p.Accent,0,ArtworkUrl:p.AvatarUrl),128)));
 
     private static string? FindSiteIcon(string html)
     {
@@ -158,7 +161,7 @@ internal static class Artwork
         return FindOpenGraphImage(html);
     }
 
-    private static bool AllowedHost(string host)=>new[]{"steamstatic.com","steamusercontent.com","epicgames.com","unrealengine.com","fortnite.com","playvalorant.com","rgpub.io","riotgames.com","leagueoflegends.com","escapefromtarkov.com","osu.ppy.sh","assets.ppy.sh","contentstack.io","raw.githubusercontent.com","github.com","githubusercontent.com","fsosx.com","ameliorated.io","amelabs.net"}.Any(allowed=>host.Equals(allowed,StringComparison.OrdinalIgnoreCase)||host.EndsWith("."+allowed,StringComparison.OrdinalIgnoreCase));
+    private static bool AllowedHost(string host)=>new[]{"steamstatic.com","steamusercontent.com","epicgames.com","unrealengine.com","fortnite.com","playvalorant.com","rgpub.io","riotgames.com","leagueoflegends.com","escapefromtarkov.com","osu.ppy.sh","assets.ppy.sh","contentstack.io","raw.githubusercontent.com","github.com","githubusercontent.com","fsosx.com","ameliorated.io","amelabs.net","blizzard.com","battle.net","playruneterra.com","tarkov.com","bnetcmsus-a.akamaihd.net","blz-contentstack-images.akamaized.net","blz-contentstack.com"}.Any(allowed=>host.Equals(allowed,StringComparison.OrdinalIgnoreCase)||host.EndsWith("."+allowed,StringComparison.OrdinalIgnoreCase));
 
     private static string? FindOpenGraphImage(string html)
     {

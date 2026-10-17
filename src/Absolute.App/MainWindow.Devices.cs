@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using Absolute.App.Services;
+using Absolute.App.Controls;
 using Absolute.Core;
 using static Absolute.App.Controls.Ui;
 
@@ -16,7 +17,7 @@ public partial class MainWindow
     private void BuildPc()
     {
         var heading=Stack(Text(hardware?.Machine??Environment.MachineName,25,weight:FontWeights.SemiBold),Text(hardware?.OperatingSystem??"Windows",13,"#A396AF"));
-        Page.Children.Add(Card(Columns((heading,1),(Icon("PC",46,"#8B65AF"),-1))));
+        var summary=Card(Columns((heading,1),(Icon("PC",40,"#8B65AF"),-1)));summary.MaxWidth=698;Page.Children.Add(summary);
         if(inventory is null){Page.Children.Add(Text(string.IsNullOrEmpty(inventoryError)?"Discovering hardware…":inventoryError,13,"#A396AF"));return;}
         HardwareGroup("Displays",inventory.Parts.Where(p=>p.Category=="Monitor"),2,PartCard);
         HardwareGroup("Components",inventory.Parts.Where(p=>p.Category is "Processor" or "Graphics" or "Memory" or "Motherboard"),2,PartCard);
@@ -26,12 +27,8 @@ public partial class MainWindow
     private void HardwareGroup(string title,IEnumerable<HardwarePart> source,int columns,Func<HardwarePart,Border> render)
     {
         var parts=source.ToArray();if(parts.Length==0)return;
-        Section(title);var grid=new UniformGrid{Columns=Math.Min(columns,parts.Length)};Page.Children.Add(grid);
-        foreach(var part in parts)
-        {
-            var card=render(part);var index=grid.Children.Count;var count=grid.Columns;
-            card.Margin=new Thickness(index%count==0?0:8,0,index%count==count-1?0:8,16);grid.Children.Add(card);
-        }
+        Section(title);var grid=new CenteredCardsPanel{Columns=columns,CardWidth=columns==3?264:340,Margin=new Thickness(0,0,0,20)};Page.Children.Add(grid);
+        foreach(var part in parts){var card=render(part);card.Margin=new Thickness(0);grid.Children.Add(card);}
     }
 
     private static Border PartCard(HardwarePart part)
@@ -91,7 +88,7 @@ public partial class MainWindow
     private void UpdateHomeDriverStatus()
     {
         if(driverHomeStatus is null)return;
-        driverHomeStatus.Text=driverChecking?"Checking manufacturer catalogs…":vendorResults.Values.Any(r=>r.Packages.Any(p=>p.Comparison>0))?"Updates available":vendorResults.Count==0?"Main hardware drivers":"Manufacturer support";
+        driverHomeStatus.Text=driverChecking?"Checking drivers…":vendorResults.Values.Any(r=>r.Packages.Any(p=>p.Comparison>0))?"Updates available":vendorResults.Count==0?"Main hardware drivers":"Driver links";
     }
 
     private void BuildDrivers()
@@ -100,7 +97,6 @@ public partial class MainWindow
         var components=MainDriverComponents();
         HardwareGroup("Displays",components.Where(c=>c.Part.Category=="Monitor").Select(c=>c.Part),2,DriverCard);
         HardwareGroup("Core hardware",components.Where(c=>c.Part.Category!="Monitor").Select(c=>c.Part),3,DriverCard);
-        var check=B(driverChecking?"Checking manufacturers…":"Check manufacturers",RunDriverCheckAsync);check.IsEnabled=!driverChecking;check.HorizontalAlignment=HorizontalAlignment.Left;Page.Children.Add(check);
         Border DriverCard(HardwarePart part)
         {
             var component=components.First(c=>ReferenceEquals(c.Part,part));var result=vendorResults.GetValueOrDefault(part.Id);
@@ -113,14 +109,15 @@ public partial class MainWindow
             if(part.Category=="Motherboard")body.Children.Add(Text("Chipset · LAN · Wi-Fi · Bluetooth",11,"#A89AB4"));
             var updates=result?.Packages.Count(p=>p.Comparison>0)??0;
             var current=result?.Packages.Count>0&&result.Packages.All(p=>p.Comparison is <=0);
-            var status=updates>0?"Update available":current?"Up to date":result?.Status??(driverChecking?"Checking manufacturer…":"Not checked yet");
+            var status=updates>0?"Update available":current?"Up to date":part.Category=="Processor"?"CPU support is included in chipset packages":driverChecking?"Checking…":"";
             var detail=Text(status,12,updates>0?"#D0ABE9":"#AFA0BC");detail.MinHeight=48;detail.Margin=new Thickness(0,12,0,18);body.Children.Add(detail);
-            if(result?.Packages.Count>0)
+            if(result?.Packages.Count>0&&(!current||part.Category=="Motherboard"))
             {
-                var direct=result.Packages.Count==1&&!current;
-                var packages=B(direct?"Download  ↗":updates>0?"View updates":"View packages",()=>{if(direct)OpenUrl(result.Packages[0].DownloadUrl);else ShowDriverPackages(part,result);},updates>0);packages.HorizontalAlignment=HorizontalAlignment.Left;packages.Margin=new Thickness(0,0,0,10);body.Children.Add(packages);
+                var direct=result.Packages.Count==1;
+                var packages=B("Download  ↗",()=>{if(direct)OpenUrl(result.Packages[0].DownloadUrl);else ShowDriverPackages(part,result);},updates>0);packages.HorizontalAlignment=HorizontalAlignment.Left;packages.Margin=new Thickness(0,0,0,10);body.Children.Add(packages);
             }
-            var support=B("Manufacturer  ↗",()=>OpenUrl(result?.Source??DriverService.SupportUrl(part)));support.HorizontalAlignment=HorizontalAlignment.Left;body.Children.Add(support);
+            var source=result?.Source??DriverService.SupportUrl(part);
+            if(source.Length>0){var support=B("Drivers  ↗",()=>OpenUrl(source));support.HorizontalAlignment=HorizontalAlignment.Left;body.Children.Add(support);}
             return Card(body,new Thickness(20));
         }
     }
@@ -134,7 +131,7 @@ public partial class MainWindow
             var download=B("Download  ↗",()=>OpenUrl(package.DownloadUrl),true);download.Margin=new Thickness(18,0,0,0);
             content.Children.Add(Card(Columns((info,1),(download,-1)),new Thickness(19)));
         }
-        var dialog=new Window{Title="Manufacturer packages",Owner=this,Width=730,Height=580,MinWidth=650,MinHeight=420,WindowStartupLocation=WindowStartupLocation.CenterOwner,Background=Brush("#0E0B13"),Foreground=Brush("#F2EFF7"),FontFamily=FontFamily,Content=new ScrollViewer{Content=content,Margin=new Thickness(28)},ShowInTaskbar=false};
+        var dialog=new Window{Title="Driver downloads",Owner=this,Width=730,Height=580,MinWidth=650,MinHeight=420,WindowStartupLocation=WindowStartupLocation.CenterOwner,Background=Brush("#0E0B13"),Foreground=Brush("#F2EFF7"),FontFamily=FontFamily,Content=new ScrollViewer{Content=content,Margin=new Thickness(28)},ShowInTaskbar=false};
         dialog.ShowDialog();
     }
 }

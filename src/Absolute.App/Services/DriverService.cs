@@ -12,13 +12,15 @@ namespace Absolute.App.Services;
 internal static class DriverService
 {
     private static readonly HttpClient Client=new(new HttpClientHandler{AutomaticDecompression=DecompressionMethods.All}){Timeout=TimeSpan.FromSeconds(22),MaxResponseContentBufferSize=8*1024*1024};
-    static DriverService()=>Client.DefaultRequestHeaders.UserAgent.ParseAdd("ABSOLUTE/0.4 (+https://github.com/svab1sekk/ABSOLUTE)");
+    static DriverService()=>Client.DefaultRequestHeaders.UserAgent.ParseAdd("ABSOLUTE/0.5 (+https://github.com/svab1sekk/ABSOLUTE)");
 
     public static async Task<VendorDriverResult> SearchAsync(HardwarePart part,IReadOnlyList<DriverDevice> installed,CancellationToken cancellationToken)
     {
         var source=SupportUrl(part);var checkedAt=DateTimeOffset.UtcNow;
         try
         {
+            if(part.Category=="Monitor"&&part.Name.StartsWith("TITAN ARMY ",StringComparison.OrdinalIgnoreCase))
+                source=await MonitorSupportResolver.ResolveAsync(part.Name,GetAsync,cancellationToken);
             if(part.Category=="Processor")return new(part.Id,source,"CPU support is included in motherboard chipset packages",[],checkedAt);
             if(part.Category=="Graphics"&&part.Name.Contains("NVIDIA",StringComparison.OrdinalIgnoreCase))
             {
@@ -59,6 +61,7 @@ internal static class DriverService
             }
             // Some vendors expose versioned downloads in the product page. Do not label
             // a driver current unless a comparable version and a model-specific package exist.
+            if(source.Length==0)return new(part.Id,"","Driver link unavailable",[],checkedAt);
             var html=await GetAsync(source,cancellationToken);
             if(part.Category=="Graphics")
             {
@@ -74,11 +77,11 @@ internal static class DriverService
                 }
             }
             var downloads=ReadProductDownloads(html,source,part,installed);
-            return new(part.Id,source,downloads.Count>0?"Manufacturer downloads found":"Open manufacturer support for model-specific packages",downloads,checkedAt);
+            return new(part.Id,source,downloads.Count>0?"Downloads found":"",downloads,checkedAt);
         }
         catch(OperationCanceledException)when(cancellationToken.IsCancellationRequested){throw;}
         catch(Exception error)when(error is HttpRequestException or TaskCanceledException or JsonException or System.Xml.XmlException or InvalidOperationException or KeyNotFoundException or ArgumentException or IOException or UnauthorizedAccessException or System.Security.SecurityException)
-        {return new(part.Id,source,"Vendor check unavailable · use manufacturer support",[],checkedAt);}
+        {return new(part.Id,source,"Driver check unavailable",[],checkedAt);}
     }
 
     private static async Task<string> GetAsync(string url,CancellationToken cancellationToken)
@@ -152,9 +155,9 @@ internal static class DriverService
         if(part.Category=="Graphics"&&Regex.IsMatch(name,@"Intel.*(?:Arc|Iris\s*Xe)",RegexOptions.IgnoreCase))return "https://www.intel.com/content/www/us/en/download/785597/intel-arc-iris-xe-graphics-windows.html";
         if(name.Contains("AMD",StringComparison.OrdinalIgnoreCase)||name.Contains("Radeon",StringComparison.OrdinalIgnoreCase))return "https://www.amd.com/en/support/download/drivers.html";
         if(name.Contains("Intel",StringComparison.OrdinalIgnoreCase))return "https://www.intel.com/content/www/us/en/search.html?ws=text#q="+query+"&sort=relevancy&f:@tabfilter=[Downloads]";
-        if(name.Contains("TITAN ARMY",StringComparison.OrdinalIgnoreCase))return "https://www.titan-army.com/search?q="+Uri.EscapeDataString(name.Replace("TITAN ARMY ","",StringComparison.OrdinalIgnoreCase));
+        if(name.Contains("TITAN ARMY",StringComparison.OrdinalIgnoreCase))return "";
         foreach(var (brand,url) in Vendors)if(name.Contains(brand,StringComparison.OrdinalIgnoreCase))return url+query;
-        return "https://www.google.com/search?q="+Uri.EscapeDataString(name+" official manufacturer drivers");
+        return "";
     }
     private static readonly (string,string)[] Vendors=
     [

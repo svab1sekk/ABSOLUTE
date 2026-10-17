@@ -16,7 +16,7 @@ internal sealed class GamePresetService(AppPreferences preferences,PreferenceSto
 
     public static DetectedGame? Detect(IEnumerable<GameDefinition> games,string? selected)
     {
-        var catalog=games.ToArray();var matches=new List<(DetectedGame Match,bool Foreground)>();
+        var catalog=games.ToArray();var libraries=SteamGameLibrary.Installed(catalog);var matches=new List<(DetectedGame Match,bool Foreground)>();
         using var currentProcess=Process.GetCurrentProcess();var session=currentProcess.SessionId;
         GetWindowThreadProcessId(GetForegroundWindow(),out var foreground);
         foreach(var process in Process.GetProcesses())
@@ -26,8 +26,14 @@ internal sealed class GamePresetService(AppPreferences preferences,PreferenceSto
                 {
                     if(process.SessionId!=session)continue;
                     var game=catalog.FirstOrDefault(g=>g.Processes.Contains(process.ProcessName,StringComparer.OrdinalIgnoreCase));
-                    if(game is null)continue;
+                    if(game is null&&libraries.Count==0)continue;
                     var executable=Executable(process.Id);
+                    if(executable is not null)
+                    {
+                        var installed=libraries.FirstOrDefault(item=>SteamManifest.ContainsExecutable(item.Directory,executable));
+                        if(installed.Game is not null)game=installed.Game;
+                    }
+                    if(game is null)continue;
                     if(game.Executable is not null&&!string.Equals(game.Executable,executable,StringComparison.OrdinalIgnoreCase))continue;
                     matches.Add((new(game,executable,process.Id),process.Id==foreground));
                 }

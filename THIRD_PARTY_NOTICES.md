@@ -12,7 +12,7 @@ https://github.com/namazso/PawnIO.Modules/releases/tag/0.1.6
 
 The unmodified installer explicitly permits redistribution. Its copyright notice reads “Copyright © 2026 namazso <admin@namazso.eu>”. It is pinned by SHA256 and its Authenticode signature is verified during packaging. ABSOLUTE never disables Windows driver-signature enforcement or the vulnerable-driver blocklist.
 
-Game artwork is retrieved from publishers' official game pages and Steam's publisher-supplied library images, and cached locally. The images and game names belong to their respective publishers. Source mappings are in `src/Absolute.Core/GameArtwork.cs`; ABSOLUTE does not claim ownership or affiliation.
+Game artwork is retrieved from publishers' official game pages and Steam's publisher-supplied library images, and cached locally. The images and game names belong to their respective publishers. Source mappings are in `src/Absolute.Core/Catalogs.cs` and `src/Absolute.Core/GameArtwork.cs`; ABSOLUTE does not claim ownership or affiliation.
 
 GPU PCI name data is derived from the PCI ID Project, copyright Martin Mares and Albert Pool, under its 3-clause BSD option. Source snapshot: https://github.com/pciutils/pciids/blob/f9817f8532cc2796c1e27479faa43607239fa8a0/pci.ids . The extracted data is embedded for identification when a fresh Windows installation reports a basic display adapter. See `ThirdParty/PciIds-LICENSE.txt`.
 
