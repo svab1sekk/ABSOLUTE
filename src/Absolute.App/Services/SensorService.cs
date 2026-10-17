@@ -19,7 +19,7 @@ internal sealed class SensorService : IDisposable
     private NvmlHandle? getHandle;
     private NvmlTemperature? getTemperature;
 
-    public SensorSnapshot Read(bool reprobe=false)
+    public SensorSnapshot Read(bool reprobe=false,TemperaturePacket? builtIn=null)
     {
         if(!probed||reprobe)
         {
@@ -40,12 +40,12 @@ internal sealed class SensorService : IDisposable
             catch(Exception ex) when(ex is ManagementException or System.Runtime.InteropServices.COMException or UnauthorizedAccessException){}
         double? Temperature(string hardware)
         {
-            var matches=readings.Where(s=>s.Type.Equals("Temperature",StringComparison.OrdinalIgnoreCase)&&s.Hardware.Contains(hardware,StringComparison.OrdinalIgnoreCase)&&s.Value is >0 and <150).ToArray();
-            return matches.Length>0?matches.Max(s=>(double)s.Value):null;
+            return SensorTemperatures.Read(readings,hardware);
         }
         var gpuTemperature=Temperature("gpu");
         if(gpuTemperature is null&&getHandle is not null&&getTemperature is not null&&getHandle(0,out var handle)==0&&getTemperature(handle,0,out var temperature)==0&&temperature is >0 and <150)gpuTemperature=temperature;
-        return new(Temperature("cpu"),gpuTemperature,GpuLoad(),readings);
+        if(builtIn is not null)readings.AddRange(builtIn.Readings);
+        return new(builtIn?.Cpu??Temperature("cpu"),builtIn?.Gpu??gpuTemperature,GpuLoad(),readings);
     }
 
     private double? GpuLoad()

@@ -45,7 +45,23 @@
       <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBox"><Grid><ToggleButton Focusable="False" IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"><ToggleButton.Template><ControlTemplate TargetType="ToggleButton"><Border Background="#21182C" BorderBrush="#473451" BorderThickness="1" CornerRadius="8"/></ControlTemplate></ToggleButton.Template></ToggleButton><ContentPresenter Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" Margin="12,8,30,8" IsHitTestVisible="False" VerticalAlignment="Center"/><Path Data="M 0,0 L 5,5 L 10,0" Stroke="#B59ACA" StrokeThickness="1.4" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,12,0" IsHitTestVisible="False"/><Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom" AllowsTransparency="True" Focusable="False"><Border Background="#1B1424" BorderBrush="#59436C" BorderThickness="1" CornerRadius="7" MinWidth="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}}"><ScrollViewer MaxHeight="350"><ItemsPresenter/></ScrollViewer></Border></Popup></Grid></ControlTemplate></Setter.Value></Setter>
     </Style>
     <Style TargetType="ComboBoxItem"><Setter Property="Foreground" Value="#E6DCEE"/><Setter Property="Padding" Value="12,9"/><Setter Property="Template"><Setter.Value><ControlTemplate TargetType="ComboBoxItem"><Border x:Name="Item" Background="Transparent" Padding="{TemplateBinding Padding}"><ContentPresenter/></Border><ControlTemplate.Triggers><Trigger Property="IsHighlighted" Value="True"><Setter TargetName="Item" Property="Background" Value="#372448"/></Trigger></ControlTemplate.Triggers></ControlTemplate></Setter.Value></Setter></Style>
-    <Style TargetType="CheckBox"><Setter Property="Foreground" Value="#CEBBDD"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="Padding" Value="7,2"/></Style>
+    <Style TargetType="CheckBox">
+      <Setter Property="Foreground" Value="#CEBBDD"/><Setter Property="VerticalContentAlignment" Value="Center"/><Setter Property="Padding" Value="7,2"/><Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template"><Setter.Value><ControlTemplate TargetType="CheckBox">
+        <Grid Background="Transparent"><Grid.ColumnDefinitions><ColumnDefinition Width="18"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+          <Border x:Name="Check" Width="17" Height="17" CornerRadius="4" BorderThickness="1" BorderBrush="#6E527F" Background="#21162C" VerticalAlignment="Center">
+            <Path x:Name="Tick" Data="M 3,7 L 6,10 L 12,4" Stroke="#F3E7FF" StrokeThickness="1.7" StrokeLineJoin="Round" Visibility="Collapsed"/>
+          </Border>
+          <ContentPresenter Grid.Column="1" Margin="9,0,0,0" VerticalAlignment="Center"/>
+        </Grid>
+        <ControlTemplate.Triggers>
+          <Trigger Property="IsChecked" Value="True"><Setter TargetName="Check" Property="Background" Value="#8055A6"/><Setter TargetName="Tick" Property="Visibility" Value="Visible"/></Trigger>
+          <Trigger Property="IsKeyboardFocused" Value="True"><Setter TargetName="Check" Property="BorderBrush" Value="#DEB6FF"/></Trigger>
+          <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Check" Property="BorderBrush" Value="#B288D1"/></Trigger>
+          <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger>
+        </ControlTemplate.Triggers>
+      </ControlTemplate></Setter.Value></Setter>
+    </Style>
     <Style TargetType="DataGrid"><Setter Property="Background" Value="#130F19"/><Setter Property="Foreground" Value="#E5DCEC"/><Setter Property="BorderBrush" Value="#35263F"/><Setter Property="RowBackground" Value="#15101D"/><Setter Property="AlternatingRowBackground" Value="#191321"/><Setter Property="GridLinesVisibility" Value="None"/><Setter Property="HeadersVisibility" Value="Column"/><Setter Property="FontSize" Value="12"/><Setter Property="RowHeight" Value="48"/></Style>
     <Style TargetType="DataGridColumnHeader"><Setter Property="Background" Value="#261B32"/><Setter Property="Foreground" Value="#C7B2DA"/><Setter Property="Padding" Value="10,13"/><Setter Property="BorderThickness" Value="0"/></Style>
     <Style TargetType="DataGridCell"><Setter Property="BorderThickness" Value="0"/><Setter Property="Padding" Value="7"/><Setter Property="VerticalContentAlignment" Value="Center"/></Style>

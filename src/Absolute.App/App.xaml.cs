@@ -14,6 +14,13 @@ public partial class App : Application
     private bool ownsInstance;
     protected override void OnStartup(StartupEventArgs e)
     {
+        if(e.Args.FirstOrDefault()=="--sensor-host")
+        {
+            var result=2;
+            try{if(e.Args.Length==4&&int.TryParse(e.Args[1],out var parent)&&long.TryParse(e.Args[2],out var started))result=Task.Run(()=>TemperatureHost.RunAsync(parent,started,e.Args[3])).GetAwaiter().GetResult();}
+            catch(Exception){result=1;}
+            Shutdown(result);return;
+        }
         if(e.Args.FirstOrDefault()=="--playbook")
         {
             var result=2;

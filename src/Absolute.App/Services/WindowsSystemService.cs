@@ -32,6 +32,7 @@ internal sealed class WindowsSystemService
         if (!GlobalMemoryStatusEx(ref status)) throw new System.ComponentModel.Win32Exception();
         return status;
     }
+    public static ulong UsableMemory()=>ReadMemory().TotalPhysical;
 
     public HardwareInfo Hardware()
     {

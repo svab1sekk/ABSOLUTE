@@ -24,8 +24,11 @@ jobs:
         shell: pwsh
         run: |
           $app = Start-Process ./artifacts/ABSOLUTE-win-x64/ABSOLUTE.exe -ArgumentList '--smoke-test', './artifacts/smoke' -PassThru
-          if (-not $app.WaitForExit(90000)) { $app.Kill(); throw 'Smoke check timed out.' }
-          if ($app.ExitCode -ne 0) { throw 'Smoke check failed. See report.json.' }
+          if (-not $app.WaitForExit(240000)) { $app.Kill(); throw 'Smoke check timed out.' }
+          if ($app.ExitCode -ne 0) {
+            $failure = if (Test-Path ./artifacts/smoke/report.json) { ((Get-Content ./artifacts/smoke/report.json -Raw | ConvertFrom-Json).Errors -join '; ') } else { 'No report was produced.' }
+            throw "Smoke check failed: $failure"
+          }
           Get-Content ./artifacts/smoke/report.json
       - name: Summarize Windows smoke check
         if: always() && matrix.runtime == 'win-x64'

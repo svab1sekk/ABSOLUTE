@@ -58,8 +58,12 @@ jobs:
         run: |
           $output = Join-Path $env:GITHUB_WORKSPACE 'artifacts/smoke'
           $app = Start-Process ./artifacts/ABSOLUTE-win-x64/ABSOLUTE.exe -ArgumentList '--smoke-test', ('"{0}"' -f $output) -PassThru
-          if (-not $app.WaitForExit(90000)) { $app.Kill(); throw 'Smoke check timed out.' }
-          if ($app.ExitCode -ne 0) { throw 'Smoke check failed. See report.json.' }
+          if (-not $app.WaitForExit(240000)) { $app.Kill(); throw 'Smoke check timed out.' }
+          if ($app.ExitCode -ne 0) {
+            $failurePath = Join-Path $output 'report.json'
+            $failure = if (Test-Path $failurePath) { ((Get-Content $failurePath -Raw | ConvertFrom-Json).Errors -join '; ') } else { 'No report was produced.' }
+            throw "Smoke check failed: $failure"
+          }
           $reportPath = Join-Path $output 'report.json'
           $report = Get-Content $reportPath -Raw | ConvertFrom-Json
           if ($report.Success -ne $true) { throw 'Smoke report did not indicate success.' }

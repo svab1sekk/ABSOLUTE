@@ -18,6 +18,7 @@ public partial class MainWindow : Window
 {
     private readonly WindowsSystemService system=new();
     private readonly SensorService sensors=new();
+    private readonly TemperatureMonitor temperatures=new();
     private readonly PreferenceStore store=new(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Absolute","preferences.json"));
     private readonly AppPreferences preferences;
     private readonly GamePresetService gamePresets;
@@ -38,7 +39,7 @@ public partial class MainWindow : Window
     private CancellationTokenSource? driverCancellation,benchmarkCancellation;
     private bool sampling,detecting,closed,closingAllowed,closingInProgress,driverChecking,cpuHasInterval;
     private readonly List<string> benchmarkNotices=[];
-    private string selectedPage="Home",gameQuery="",driverQuery="",driverCategory="All devices",gameState="Waiting for a game",inventoryError="",devicesError="";
+    private string selectedPage="Home",gameQuery="",gameState="Waiting for a game",inventoryError="",devicesError="";
     private TextBlock? cpuValue,memoryValue,memoryDetail,gpuValue,cpuTemperature,gpuTemperature,downloadValue,uploadValue,uptimeValue;
     private TextBlock? driverHomeStatus;
     private Controls.Sparkline? cpuChart;
@@ -70,9 +71,9 @@ public partial class MainWindow : Window
                 var args=Environment.GetCommandLineArgs();var index=Array.IndexOf(args,"--smoke-test");
                 await RunSmokeCheckAsync(index+1<args.Length?args[index+1]:"smoke-results",firstFrame);
             }
-            else _=StartDriverCheckAsync();
+            else{_=StartDriverCheckAsync();if(preferences.TemperatureMonitoring)_=StartTemperatureMonitorAsync();}
         };
-        Closing+=OnClosing;Closed+=(_,_)=>{closed=true;monitor.Stop();gameMonitor.Stop();toastTimer.Stop();driverCancellation?.Cancel();benchmarkCancellation?.Cancel();};
+        Closing+=OnClosing;Closed+=(_,_)=>{closed=true;monitor.Stop();gameMonitor.Stop();toastTimer.Stop();driverCancellation?.Cancel();driverDownloadCancellation?.Cancel();benchmarkCancellation?.Cancel();temperatures.Dispose();};
     }
 
     private async Task InitializeAsync()
@@ -100,13 +101,13 @@ public partial class MainWindow : Window
             var parts=result.Parts.ToList();
             foreach(var gpu in graphics)
             {
-                var existing=parts.FindIndex(p=>p.Category=="Graphics"&&p.Name.Equals(gpu.Name,StringComparison.OrdinalIgnoreCase));
+                var existing=parts.FindIndex(p=>p.Category=="Graphics"&&p.Name.Equals(gpu.Name,StringComparison.OrdinalIgnoreCase)&&!p.Details.Any(d=>d.Key is "VRAM" or "Memory"));
                 if(existing>=0)parts[existing]=parts[existing] with{Details=parts[existing].Details.Concat(gpu.Details).ToArray()};else parts.Add(gpu);
             }
             inventory=result with{Parts=parts};
         }
         catch(Exception error){inventoryError=error.Message;}
-        if(!closed)RefreshPage("PC");
+        if(!closed)RefreshPage("PC","Drivers");
     }
     private async Task LoadDevicesAsync()
     {
@@ -114,13 +115,19 @@ public partial class MainWindow : Window
         if(!closed){UpdateHomeDriverStatus();RefreshPage("Drivers");}
     }
     private async Task StartDriverCheckAsync(){await Task.Delay(300);if(!closed)await RunDriverCheckAsync();}
+    private async Task StartTemperatureMonitorAsync()
+    {
+        await temperatures.StartAsync();
+        try{await temperatures.FirstReading.WaitAsync(TimeSpan.FromMinutes(2));}catch(TimeoutException){}
+        if(!closed)await SampleAsync();
+    }
     private async Task SampleAsync(bool reprobe=false)
     {
         if(sampling||closed)return;sampling=true;
         try
         {
             var next=await Task.Run(system.Sample);var nextNetwork=await Task.Run(WindowsSystemService.Network);
-            var nextSensors=await Task.Run(()=>sensors.Read(reprobe));if(closed)return;
+            var nextSensors=await Task.Run(()=>sensors.Read(reprobe,preferences.TemperatureMonitoring?temperatures.Snapshot:null));if(closed)return;
             var hadSample=snapshot is not null;cpuHasInterval=hadSample;snapshot=next;sensorSnapshot=nextSensors;
             if(cpuValue is not null)cpuValue.Text=hadSample?$"{next.CpuPercent:F0}%":"—";
             if(hadSample)cpuChart?.Add(next.CpuPercent);
@@ -130,6 +137,7 @@ public partial class MainWindow : Window
             if(gpuValue is not null)gpuValue.Text=nextSensors.GpuLoad is double gpu?$"{gpu:F0}%":"—";
             if(cpuTemperature is not null)cpuTemperature.Text=Temperature(nextSensors.CpuTemperature);
             if(gpuTemperature is not null)gpuTemperature.Text=Temperature(nextSensors.GpuTemperature);
+            if(cpuTemperature is not null)cpuTemperature.ToolTip=temperatures.Status;
             if(uptimeValue is not null)uptimeValue.Text=$"{(int)next.Uptime.TotalHours}h {next.Uptime.Minutes}m";
             var now=DateTimeOffset.UtcNow;
             if(network is not null&&nextNetwork is not null&&network.Adapter==nextNetwork.Adapter)
@@ -163,7 +171,7 @@ public partial class MainWindow : Window
     private async void OnClosing(object? sender,CancelEventArgs args)
     {
         if(closingAllowed)return;args.Cancel=true;if(closingInProgress)return;closingInProgress=true;
-        monitor.Stop();gameMonitor.Stop();driverCancellation?.Cancel();benchmarkCancellation?.Cancel();
+        monitor.Stop();gameMonitor.Stop();driverCancellation?.Cancel();driverDownloadCancellation?.Cancel();benchmarkCancellation?.Cancel();
         await Safe(gamePresets.RestoreAsync);closingAllowed=true;Close();
     }
     private Task AnimateIntroAsync()

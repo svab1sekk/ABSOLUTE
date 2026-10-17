@@ -17,9 +17,7 @@ internal static class GraphicsDiscovery
                 if((description.Flags&AdapterFlags.Software)!=0)continue;
                 result.Add(new("Graphics",HardwareNames.Clean(description.Description),new Dictionary<string,string>
                 {
-                    ["Dedicated VRAM"]=$"{(ulong)description.DedicatedVideoMemory/1073741824d:0.#} GB",
-                    ["Shared memory limit"]=$"{(ulong)description.SharedSystemMemory/1073741824d:0.#} GB",
-                    ["Vendor / device"]=$"{description.VendorId:X4} / {description.DeviceId:X4}"
+                    [description.DedicatedVideoMemory>0?"VRAM":"Memory"] = description.DedicatedVideoMemory>0?$"{(ulong)description.DedicatedVideoMemory/1073741824d:0.#} GB":"Shared"
                 }.ToArray()));
             }
         }

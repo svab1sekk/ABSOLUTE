@@ -1,82 +1,70 @@
 # ABSOLUTE
 
-Native Windows 10/11 desktop utility. Black and purple, custom window controls, and no bundled browser.
+Native Windows 10/11 desktop utility. Self-contained .NET, custom window controls, black and purple.
 
-[Download Windows x64](https://github.com/svab1sekk/ABSOLUTE/releases/download/v0.2.0-preview.2/ABSOLUTE-win-x64.zip) · [Release page](https://github.com/svab1sekk/ABSOLUTE/releases/tag/v0.2.0-preview.2)
+[Download Windows x64](https://github.com/svab1sekk/ABSOLUTE/releases/download/v0.3.0-preview.1/ABSOLUTE-win-x64.zip) · [Release](https://github.com/svab1sekk/ABSOLUTE/releases/tag/v0.3.0-preview.1)
 
-Extract the entire ZIP and launch `ABSOLUTE.exe`. .NET is included. Windows 10 version 1607+ and Windows 11 are supported; ARM64 builds are available from the Windows workflow. Releases are unsigned previews.
+Extract the whole ZIP and launch `ABSOLUTE.exe`. Keep its folders together. Windows 10 x64 and Windows 11 are supported; ARM64 is cross-built in CI. Releases are unsigned previews.
 
-## Pages
+## Drivers
 
-| Page | Behavior |
-| --- | --- |
-| Home | Live CPU, GPU 3D engine, usable RAM, network rates, uptime, and exposed CPU/GPU temperatures. |
-| System / Network | Intentionally empty. |
-| Presets | Three-column competitive-game gallery, search, and Add game. Automatic detection works while ABSOLUTE is running. |
-| Playbooks | Reversible ABSOLUTE settings profiles and a catalog of external Windows projects with official links. |
-| Benchmark | Select CPU, GPU 2D, and/or RAM. Results are actual workload throughput rather than an overall score. |
-| PC | Separate cards for processors, graphics, memory modules, motherboard, firmware, storage, adapters, peripherals, and available cooling sensors. |
-| Drivers | All installed signed-driver records, hardware IDs, Windows Update offers, and manufacturer support links. |
-| Settings | Hardware refresh, game detection, logo animation, profile recovery, sensor reconnection, and local result history. |
+Drivers shows CPU, GPUs, the motherboard, and identifiable keyboards, mice and connected monitors as component cards. The full PnP inventory is used internally for matching updates. Audio endpoints, CPU-thread records, virtual adapters and generic input-device rows are not listed.
 
-## Game profiles
+The motherboard groups applicable chipset, PCI storage, Ethernet, Wi-Fi and physical Bluetooth driver offers. Windows Update checks run in the background. **Download** retrieves matching offers into the Windows Update cache; installation remains in Windows Update. Packages with an unaccepted vendor license direct you to Windows Update. Drivers are not automatically installed.
 
-The catalog contains 32 games, including Fortnite, CS2, VALORANT, League of Legends, Overwatch 2, Rocket League, Apex Legends, Siege, Dota 2, PUBG, Deadlock, Marvel Rivals, Warzone, THE FINALS, Delta Force, fighting games, and competitive racing/sports games. Add game supports further executables.
+Motherboard packages opens the manufacturer's model page or search, where available. CPU, GPU, monitor and peripheral cards have official manufacturer links. Windows Update is not a universal catalog of the newest OEM-only drivers; “no update offered” does not claim that every vendor release has been checked. Existing Windows Update/WSUS policies are respected.
 
-Profiles select an existing High performance Windows power plan when available and raise an eligible game process to Above Normal priority. They do not edit game files, affinity masks, security features, or in-game graphics. Games with protected processes may refuse priority changes. No unavailable plan is invented. GPU switching settings are not advertised as live changes because Windows applies those on a subsequent game launch.
+## PC
 
-The rollback journal is saved before changes. Settings restore on game exit, profile switch, or application exit; an interrupted session is recovered on the next launch. A PID and process start time prevent restoring the priority of an unrelated reused process. External power-plan/priority changes are preserved.
+- CPU: model, cores and threads. WMI `MaxClockSpeed` is not labelled as the advertised boost clock.
+- GPU: model and DXGI dedicated video memory, or shared memory when no dedicated allocation is reported.
+- RAM: one combined capacity/type entry, identifiable brand or product family, usable memory and reported configured speed. Module slots and DIMM labels are omitted. Product-family recognition uses the reported part number; it does not invent a kit model.
+- Motherboard: model and BIOS version.
+- Storage: physical drives, capacity, and SSD/HDD/NVMe classification when Windows exposes it.
+- Peripherals: specific product names from raw-input/HID descriptors and bus-reported device names. Firmware that reports only a generic name or receiver cannot establish the exact attached model, so that entry is omitted.
+- Monitors: active display instances, EDID product names and manufacturer codes, with current mode when the display interface can be matched, otherwise EDID's preferred mode. Duplicate reports are merged using EDID identity; separate connected displays are retained. TITAN ARMY P25S Plus has an explicit model alias.
+- Audio: identifiable physical USB/Bluetooth audio products, once per device container. Generic endpoints, motherboard audio controllers, HDMI/DisplayPort endpoints and monitor/jack entries are excluded.
 
-## Settings playbooks
+PC has no serial/revision rows, volume cards, network-adapter cards, driver versions, architecture or color-depth fields. Memory totals stay in the RAM card.
 
-Competitive, Balanced, Focus, and Streaming are **ABSOLUTE settings profiles**, not unofficial copies of third-party OS installations. Activation requests Windows UAC, creates and verifies a System Restore point, and then changes only whitelisted per-user Game Mode, capture, and notification settings. Windows may require a game/session restart for some settings.
+## Temperatures
 
-Switching first restores the previous profile's exact values using the journal under `HKCU\Software\Absolute\Playbooks`. Values changed outside ABSOLUTE cause a conflict and prevent a restore instead of being overwritten. Windows restore points are emergency backups only: ABSOLUTE never invokes full System Restore or deletes/modifies user folders to switch profiles.
+LibreHardwareMonitorLib **0.9.6** runs inside a separate ABSOLUTE helper. The verified upstream **PawnIO 2.1.0** installer is included in the ZIP and installs automatically if needed. No separate hardware-monitor application or manual download is required. Windows requests administrator permission for the helper after the main window renders. Cancelling that Windows prompt leaves restricted sensors unavailable; it does not prevent using the app.
 
-System Protection must be enabled. A failed restore-point operation prevents activation. The 24-hour restore-point frequency value is temporarily changed for the checkpoint and restored in `finally`.
+The pipe accepts readings only from the launched helper and is restricted to the current user, administrators and SYSTEM. The elevated helper validates the parent's executable, session, process start time and pipe-server PID. It receives no execution commands. It exits with the app. No ABSOLUTE background service is installed.
 
-External cards include AtlasOS, ReviOS, FSOSX, AME 11, tiny11builder, MicroWin, WinUtil, Sophia Script, privacy.sexy, Optimizer, WinSlap, Win11Debloat, UnattendedWinstall, and Rectify11. Cards distinguish playbooks, OS image builders, configuration tools, and customization. Full installations can modify Windows components/files and therefore open the official project instead of running under the no-folders rule.
+CPU package/die readings are preferred; distance-to-TjMax is excluded. GPU core readings are preferred over hotspot/junction readings. Unsupported hardware and virtual machines may expose no temperature even when the bundled monitor initializes correctly. Existing NVML and monitor WMI providers remain fallbacks. Windows security settings and driver-signature enforcement are kept enabled.
 
-## Sensors, cooling, and drivers
+## Home, Presets and Playbooks
 
-NVIDIA temperature uses the installed NVML driver library when available. LibreHardwareMonitor/OpenHardwareMonitor WMI providers can supply CPU/GPU temperatures, fan speed, flow, or pump sensors. Unsupported or inaccessible sensors show unavailable. No ACPI zone is mislabelled as CPU die temperature, and no temperature is estimated. Use Sensor setup to open the official monitor release and reconnect its running provider. Vendor-specific water-cooler telemetry is available only if exposed by a provider.
+Home retains live CPU/GPU/RAM/network readings and adds shortcuts to Windows Game Mode, startup apps, storage cleanup and Windows Update.
 
-Driver discovery uses Windows PnP/signed-driver WMI records. Windows Update is queried online in the background after the first window renders; its existing service/policy settings are respected. An applicable update is matched by hardware ID. No offer from Windows Update does **not** prove that the newest vendor-only release is installed. OEM support links are provided for peripherals and vendor-specific software. Drivers are never automatically installed.
+Presets uses publisher-supplied Steam library images and official publisher cover images, fetched automatically and cached locally. The selected game has a large faded header. Custom games retain a plain card unless official artwork is supplied. Game profiles detect processes while ABSOLUTE runs, apply an available High performance plan and eligible Above Normal priority, then restore their own changes on game exit, profile switch, or application exit. Protected games can restrict priority changes. Game files are unchanged.
 
-## Benchmarks
+Playbooks contains AtlasOS, ReviOS, AME 11, FSOSX, tiny11builder and MicroWin, with concise descriptions, maker credits and official project links. It has no banners or ABSOLUTE Competitive/Balanced/Focus/Streaming profiles. Settings can restore a legacy profile applied by an older version; that recovery uses its original settings journal and never invokes a full System Restore.
 
-- CPU: parallel SHA-256 throughput, all logical processors, about 4 seconds.
-- GPU: a real hardware Direct2D scene with 1,600 translucent sprites, immediate presentation, about 4.5 seconds. The result is render-pipeline FPS at the reported resolution, not a pure GPU compute or in-game FPS score. Hardware rendering is required; unsupported sessions report unavailable.
-- RAM: single-threaded 32 MB memory-copy throughput, about 4 seconds.
+System and Network remain empty. CPU hashing, hardware Direct2D GPU rendering and RAM-copy benchmarks retain measured workload results and cancellation.
 
-Repeat runs on the same PC and settings for meaningful comparisons. The last 60 component results stay locally at `%LOCALAPPDATA%\Absolute\preferences.json`; old memory-copy history is preserved.
+## Development
 
-## Develop and test
-
-Use the existing checkout and .NET 8 SDK. Windows is required for the WPF app and Windows services.
+Use the existing checkout and .NET 8 SDK. Linux can compile with Windows targeting and run the shared tests; the WPF app, sensors, HID, EDID and Windows Update require Windows.
 
 ```powershell
 dotnet restore ABSOLUTE.sln
-dotnet build ABSOLUTE.sln --configuration Release
-dotnet test tests/Absolute.Core.Tests --configuration Release
-dotnet run --project src/Absolute.App
+dotnet build ABSOLUTE.sln -c Release
+dotnet test tests/Absolute.Core.Tests -c Release
 ```
 
-Shared tests also run on Linux/macOS. They exercise settings rollback/conflicts, partial failures, persistence, cancellation, and actual CPU/RAM workloads.
+On Windows, prepare the bundled driver before running locally:
 
 ```powershell
+./scripts/prepare-dependencies.ps1
+dotnet run --project src/Absolute.App --runtime win-x64
 ./scripts/publish.ps1
-./scripts/publish.ps1 -Runtime win-arm64
 ```
 
-Outputs go to `artifacts/`. ReadyToRun and folder distribution avoid single-file extraction. Hardware discovery, sensor connections, and driver checks run after the first window renders. The short logo animation respects Windows reduced-motion settings.
+The preparation script verifies the pinned installer's SHA256 and Authenticode signature. Publishing produces `artifacts/ABSOLUTE-win-x64.zip` with its dependencies and third-party notices. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for licenses and source links.
 
-```powershell
-$app = Start-Process ./artifacts/ABSOLUTE-win-x64/ABSOLUTE.exe -ArgumentList '--smoke-test', './artifacts/smoke' -PassThru
-$app.WaitForExit()
-$app.ExitCode
-```
+Windows smoke checks verify inventory, combined RAM, the bundled sensor driver and helper initialization, real game-profile rollback, the hardware Direct2D workload, and page rendering at two window sizes. Publisher-image results are recorded separately, including offline or blocked sources. A disposable VM cannot validate physical CPU temperatures, every vendor's HID firmware, or ARM64 runtime behavior. Live Windows Update download/install behavior depends on the target PC's policy and available offers.
 
-Windows smoke checks render all nine pages at two sizes, verify live readings and hardware/driver inventory, exercise and restore an actual game-process/power profile on the disposable runner, and attempt the hardware Direct2D test. Unavailable GPU hardware is reported separately. Online driver searches and real restore-point activation depend on the target PC and are not claimed as verified by CI. Smoke runs do not apply an OS playbook or alter user folders.
-
-The release workflow builds the triggering source commit, checks its version/tag, validates Windows smoke results, and uploads the fresh ZIP, checksum, and page screenshots. ARM64 is cross-built and needs real ARM64 hardware for runtime verification.
+The release workflow builds the triggering source commit, requires tests and Windows smoke success, then publishes the ZIP, SHA256 checksum, screenshots and validation report. ReadyToRun and folder distribution avoid single-file extraction; discovery and online work follow the first rendered frame.

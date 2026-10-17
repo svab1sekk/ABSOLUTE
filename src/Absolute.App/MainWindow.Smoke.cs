@@ -20,6 +20,11 @@ public partial class MainWindow
         {
             Directory.CreateDirectory(output);
             await Task.WhenAll(inventoryTask,devicesTask);
+            if(!Services.TemperatureHost.BundledDriverIsValid())errors.Add("The bundled temperature driver is missing or failed verification.");
+            await temperatures.StartAsync(false);
+            try{await temperatures.FirstReading.WaitAsync(TimeSpan.FromSeconds(110));}catch(TimeoutException){errors.Add("Built-in sensor helper did not respond.");}
+            if(temperatures.Snapshot?.Ready!=true)errors.Add("Built-in sensor initialization failed: "+temperatures.Status);
+            await Artwork.WarmAsync(Catalogs.Games).WaitAsync(TimeSpan.FromSeconds(100));
             if(hardware is null||hardware.Memory==0)errors.Add("No physical memory reported.");
             if(snapshot is null||snapshot.MemoryTotal==0)errors.Add("Live memory readings unavailable.");
             if(!powerPlans.Any(p=>p.Active))errors.Add("No active Windows power plan discovered.");
@@ -45,7 +50,9 @@ public partial class MainWindow
                     await Dispatcher.InvokeAsync(UpdateLayout,DispatcherPriority.ApplicationIdle);
                     if(page is "System" or "Network")
                     {if(Page.Children.Count!=1)errors.Add(page+" should contain only its title.");}
-                    else if(Page.Children.Count<3)errors.Add(page+" is missing content.");
+                    else if(Page.Children.Count<(page=="Playbooks"?2:3))errors.Add(page+" is missing content.");
+                    if(page=="PC"&&inventory?.Parts.Count(p=>p.Category=="Memory")!=1)errors.Add("PC memory is not combined into one card.");
+                    if(page=="PC"&&inventory?.Parts.Any(p=>p.Category is "Volume" or "Firmware" or "Network" or "Cooling")==true)errors.Add("PC contains an excluded hardware category.");
                     var dpi=VisualTreeHelper.GetDpi(this);
                     var bitmap=new RenderTargetBitmap((int)(ActualWidth*dpi.DpiScaleX),(int)(ActualHeight*dpi.DpiScaleY),dpi.PixelsPerInchX,dpi.PixelsPerInchY,PixelFormats.Pbgra32);
                     bitmap.Render(this);var encoder=new PngBitmapEncoder();encoder.Frames.Add(BitmapFrame.Create(bitmap));
@@ -65,11 +72,13 @@ public partial class MainWindow
                 {
                     Success=success,ManagedFirstFrameMilliseconds=firstFrameMilliseconds,
                     OperatingSystem=hardware?.OperatingSystem,MemoryBytes=snapshot?.MemoryTotal,CpuPercent=snapshot?.CpuPercent,
-                    HardwareParts=inventory?.Parts.Count,InstalledDrivers=devices.Count,PowerPlans=powerPlans.Count,
+                    HardwareParts=inventory?.Parts.Count,MainDriverComponents=MainDriverComponents().Select(c=>new{c.Part.Category,c.Part.Name}),PowerPlans=powerPlans.Count,
                     Gpu2DCheck=gpuCheck,Gpu2DResult=gpuResult,
                     GameProfileCheck=gameProfileCheck,
                     OnlineDriverCheck="Not run in CI; Windows Update depends on device policy and service availability.",
-                    PlaybookApply="Settings transaction covered by core tests; restore points require System Protection on the user's Windows PC.",
+                    TemperatureMonitor=temperatures.Status,BundledSensorDriverVerified=Services.TemperatureHost.BundledDriverIsValid(),
+                    PublisherArtwork=Artwork.Status,
+                    Playbooks="Official OS projects; no ABSOLUTE settings profiles are shown.",
                     Screenshots=rendered,Errors=errors
                 },new JsonSerializerOptions{WriteIndented=true}));
             }

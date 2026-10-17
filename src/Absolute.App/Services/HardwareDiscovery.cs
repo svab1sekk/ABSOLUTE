@@ -1,6 +1,5 @@
 using System.IO;
 using System.Management;
-using System.Net.NetworkInformation;
 using Absolute.Core;
 
 namespace Absolute.App.Services;
@@ -28,25 +27,34 @@ internal static class HardwareDiscovery
             try { parts.AddRange(Query(query).Select(convert)); }
             catch (Exception ex) when (ex is ManagementException or System.Runtime.InteropServices.COMException or UnauthorizedAccessException or TimeoutException) { unavailable.Add(category); }
         }
-        Read("Processor", "SELECT Name,NumberOfCores,NumberOfLogicalProcessors,MaxClockSpeed,SocketDesignation,L2CacheSize,L3CacheSize,AddressWidth FROM Win32_Processor", x => Part("Processor", S(x,"Name"),
-            ("Cores",S(x,"NumberOfCores")),("Threads",S(x,"NumberOfLogicalProcessors")),("Maximum clock",S(x,"MaxClockSpeed")+" MHz"),("Socket",S(x,"SocketDesignation")),("L3 cache",S(x,"L3CacheSize")+" KB"),("Architecture",S(x,"AddressWidth")+" bit")));
-        Read("Graphics", "SELECT Name,VideoProcessor,DriverVersion,DriverDate,VideoModeDescription,PNPDeviceID FROM Win32_VideoController", x => Part("Graphics",S(x,"Name"),
-            ("Chip",S(x,"VideoProcessor")),("Driver",S(x,"DriverVersion")),("Display mode",S(x,"VideoModeDescription"))));
-        Read("Memory", "SELECT Capacity,Manufacturer,PartNumber,Speed,ConfiguredClockSpeed,DeviceLocator,SMBIOSMemoryType FROM Win32_PhysicalMemory", x =>
+        Read("Processor", "SELECT Name,NumberOfCores,NumberOfLogicalProcessors,DeviceID FROM Win32_Processor", x => Part("Processor", S(x,"Name"),
+            ("Cores",S(x,"NumberOfCores")),("Threads",S(x,"NumberOfLogicalProcessors"))) with { Id=S(x,"DeviceID") });
+        Read("Graphics", "SELECT Name,PNPDeviceID FROM Win32_VideoController", x => Part("Graphics",S(x,"Name")) with { Id=S(x,"PNPDeviceID") });
+        try
         {
-            var capacity=U(x,"Capacity"); installed+=capacity;
-            var type=Convert.ToInt32(x.GetValueOrDefault("SMBIOSMemoryType")??0) switch {26=>"DDR4",34=>"DDR5",24=>"DDR3",30=>"LPDDR4",35=>"LPDDR5",_=>"RAM"};
-            return Part("Memory", $"{S(x,"DeviceLocator")} · {capacity/1073741824d:0.#} GB {type}", ("Manufacturer",S(x,"Manufacturer")),("Part",S(x,"PartNumber")),("Configured speed",S(x,"ConfiguredClockSpeed")+" MT/s"),("Rated speed",S(x,"Speed")+" MT/s"));
-        });
-        Read("Motherboard", "SELECT Manufacturer,Product,Version,SerialNumber FROM Win32_BaseBoard", x=>Part("Motherboard",S(x,"Manufacturer")+" "+S(x,"Product"),("Revision",S(x,"Version")),("Serial",S(x,"SerialNumber"))));
-        Read("Firmware", "SELECT Manufacturer,SMBIOSBIOSVersion,ReleaseDate FROM Win32_BIOS",x=>Part("Firmware",S(x,"Manufacturer"),("Version",S(x,"SMBIOSBIOSVersion")),("Released",Date(S(x,"ReleaseDate")))));
-        Read("Storage", "SELECT Model,Size,InterfaceType,MediaType,FirmwareRevision,Status FROM Win32_DiskDrive",x=>Part("Storage",S(x,"Model"),("Capacity",$"{U(x,"Size")/1073741824d:N0} GB"),("Interface",S(x,"InterfaceType")),("Type",S(x,"MediaType")),("Firmware",S(x,"FirmwareRevision")),("Status",S(x,"Status"))));
-        Read("Peripherals", "SELECT Name,Manufacturer,PNPClass,Status FROM Win32_PnPEntity WHERE PNPClass='Mouse' OR PNPClass='Keyboard' OR PNPClass='Monitor' OR PNPClass='MEDIA' OR PNPClass='AudioEndpoint' OR PNPClass='Battery'",x=>Part(S(x,"PNPClass"),S(x,"Name"),("Manufacturer",S(x,"Manufacturer")),("Status",S(x,"Status"))));
-        Read("Cooling", "SELECT Name,Description,Status FROM Win32_Fan",x=>Part("Cooling",S(x,"Name"),("Description",S(x,"Description")),("Status",S(x,"Status"))));
-        foreach(var disk in DriveInfo.GetDrives().Where(d=>d.IsReady&&d.DriveType==DriveType.Fixed))
-            parts.Add(Part("Volume",disk.Name+(string.IsNullOrWhiteSpace(disk.VolumeLabel)?"":" · "+disk.VolumeLabel),("Capacity",$"{disk.TotalSize/1073741824d:N0} GB"),("Available",$"{disk.AvailableFreeSpace/1073741824d:N0} GB"),("File system",disk.DriveFormat)));
-        foreach(var nic in NetworkInterface.GetAllNetworkInterfaces().Where(n=>n.NetworkInterfaceType!=NetworkInterfaceType.Loopback))
-            parts.Add(Part("Network",nic.Description,("Connection",nic.OperationalStatus.ToString()),("Link speed",$"{Math.Max(0,nic.Speed)/1_000_000:N0} Mbps"),("MAC",nic.GetPhysicalAddress().ToString()),("Adapter",nic.Name)));
+            var modules=Query("SELECT Capacity,Manufacturer,PartNumber,ConfiguredClockSpeed,SMBIOSMemoryType FROM Win32_PhysicalMemory")
+                .Select(x=>new MemoryModuleInfo(S(x,"Manufacturer"),S(x,"PartNumber"),U(x,"Capacity"),I(x,"SMBIOSMemoryType"),I(x,"ConfiguredClockSpeed"))).ToArray();
+            installed=modules.Aggregate(0UL,(sum,module)=>sum+module.Capacity);
+            parts.Add(HardwareIdentity.CombineMemory(modules,WindowsSystemService.UsableMemory()));
+        }
+        catch(Exception ex) when(IsUnavailable(ex)){unavailable.Add("Memory");}
+        var bios="";
+        try{bios=Query("SELECT SMBIOSBIOSVersion FROM Win32_BIOS").Select(x=>S(x,"SMBIOSBIOSVersion")).FirstOrDefault()??"";}catch(Exception ex) when(IsUnavailable(ex)){}
+        Read("Motherboard", "SELECT Manufacturer,Product FROM Win32_BaseBoard", x=>Part("Motherboard",HardwareIdentity.BoardName(S(x,"Manufacturer"),S(x,"Product")),("BIOS",bios)) with{Id="motherboard"});
+        try
+        {
+            foreach(var disk in Query("SELECT FriendlyName,Model,MediaType,BusType,Size,DeviceId FROM MSFT_PhysicalDisk",@"root\Microsoft\Windows\Storage"))
+            {
+                var type=I(disk,"BusType")==17?"NVMe SSD":I(disk,"MediaType") switch{3=>"HDD",4=>"SSD",_=>""};
+                var model=S(disk,"Model");if(model=="Unavailable"||string.IsNullOrWhiteSpace(model))model=S(disk,"FriendlyName");
+                parts.Add(Part("Storage",model,("Capacity",$"{U(disk,"Size")/1073741824d:0.#} GB"),("Drive",type)) with{Id="disk-"+S(disk,"DeviceId")});
+            }
+        }
+        catch(Exception ex) when(IsUnavailable(ex)){}
+        if(!parts.Any(p=>p.Category=="Storage"))Read("Storage","SELECT Model,Size,PNPDeviceID FROM Win32_DiskDrive",x=>Part("Storage",S(x,"Model"),("Capacity",$"{U(x,"Size")/1073741824d:0.#} GB")) with{Id=S(x,"PNPDeviceID")});
+        try{parts.AddRange(WindowsDeviceIdentity.ReadMonitors());}catch(Exception ex) when(IsUnavailable(ex)){unavailable.Add("Monitors");}
+        try{parts.AddRange(WindowsDeviceIdentity.ReadPeripherals());}catch(Exception ex) when(IsUnavailable(ex)){unavailable.Add("Peripherals");}
+        try{parts.AddRange(WindowsDeviceIdentity.ReadAudio());}catch(Exception ex) when(IsUnavailable(ex)){unavailable.Add("Audio");}
         return new(parts,installed,unavailable);
     }
 
@@ -66,5 +74,7 @@ internal static class HardwareDiscovery
     private static HardwarePart Part(string category,string name,params (string Key,string Value)[] details) => new(category,HardwareNames.Clean(name),details.Where(x=>!string.IsNullOrWhiteSpace(x.Value)&&x.Value!="Unavailable").Select(x=>new KeyValuePair<string,string>(x.Key,HardwareNames.Clean(x.Value))).ToArray());
     private static string S(Dictionary<string,object?> x,string key)=>x.GetValueOrDefault(key)?.ToString()?.Trim()??"Unavailable";
     private static ulong U(Dictionary<string,object?> x,string key)=>ulong.TryParse(S(x,key),out var value)?value:0;
+    private static int I(Dictionary<string,object?> x,string key)=>int.TryParse(S(x,key),out var value)?value:0;
+    private static bool IsUnavailable(Exception ex)=>ex is ManagementException or System.Runtime.InteropServices.COMException or UnauthorizedAccessException or TimeoutException or IOException or System.ComponentModel.Win32Exception;
     private static string Date(string value)=>value.Length>=8&&DateTime.TryParseExact(value[..8],"yyyyMMdd",null,System.Globalization.DateTimeStyles.None,out var date)?date.ToString("yyyy-MM-dd"):value;
 }

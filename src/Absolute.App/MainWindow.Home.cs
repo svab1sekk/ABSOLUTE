@@ -14,8 +14,8 @@ public partial class MainWindow
         memoryValue=Text(snapshot is null?"—":$"{GiB(snapshot.MemoryUsed):F1} GB",34,weight:FontWeights.SemiBold);
         memoryDetail=Text(snapshot is null?"Reading memory…":$"of {GiB(snapshot.MemoryTotal):F1} GB usable",12,"#A396AF");
         cpuTemperature=Text(Temperature(sensorSnapshot.CpuTemperature),13,"#C7A9E6");gpuTemperature=Text(Temperature(sensorSnapshot.GpuTemperature),13,"#C7A9E6");
-        cpuTemperature.ToolTip="CPU sensors from LibreHardwareMonitor or OpenHardwareMonitor. No estimated temperatures.";
-        gpuTemperature.ToolTip="GPU temperature from the installed NVIDIA driver or a hardware-monitor sensor provider.";
+        cpuTemperature.ToolTip=temperatures.Status;
+        gpuTemperature.ToolTip="Built-in GPU temperature monitoring";
         cpuChart=new Sparkline{Height=64,Margin=new Thickness(0,16,0,0)};
         memoryBar=new ProgressBar{Maximum=100,Value=snapshot is {MemoryTotal:>0} s?s.MemoryUsed*100d/s.MemoryTotal:0,Margin=new Thickness(0,22,0,0)};
         var cpu=Tile("CPU",hardware?.Processor??"Processor",cpuValue,cpuTemperature,cpuChart);
@@ -35,23 +35,21 @@ public partial class MainWindow
         var driverGlyph=Icon("Drivers",24);driverGlyph.Margin=new Thickness(0,0,14,0);
         var driver=Card(Columns((driverGlyph,-1),(Stack(Text("Drivers",14,weight:FontWeights.SemiBold),driverHomeStatus),1),(B("Open",()=>Select("Drivers")),-1)),new Thickness(20));driver.Margin=new Thickness(10,0,0,18);
         Page.Children.Add(Columns((benchmark,1),(driver,1)));
-        if(sensorSnapshot.CpuTemperature is null||sensorSnapshot.GpuTemperature is null)
+        Section("Tools");
+        var tools=new System.Windows.Controls.Primitives.UniformGrid{Columns=2};Page.Children.Add(tools);
+        Tool("Presets","Game Mode","gaming-gamemode");Tool("System","Startup apps","startupapps");
+        Tool("Storage","Storage cleanup","storagesense");Tool("Drivers","Windows Update","windowsupdate");
+        void Tool(string icon,string label,string settings)
         {
-            var sensor=Columns((Text("Some temperature sensors are not exposed by Windows.",12,"#93859F"),1),(B("Sensor setup",ShowSensorSetup),-1));Page.Children.Add(sensor);
+            var open=B("Open",()=>Services.WindowsSystemService.OpenSettings(settings));
+            var card=Card(Columns((Icon(icon,22),-1),(Text(label,14,weight:FontWeights.SemiBold),1),(open,-1)),new Thickness(20));
+            ((Grid)card.Child).Children[1].SetValue(MarginProperty,new Thickness(14,0,10,0));
+            card.Margin=new Thickness(tools.Children.Count%2==0?0:9,0,tools.Children.Count%2==0?9:0,18);tools.Children.Add(card);
         }
     }
     private static Border Tile(string label,string name,TextBlock value,TextBlock detail,UIElement extra)
     {
         var title=Text(name,12,"#B3A5C0");title.Height=40;title.VerticalAlignment=VerticalAlignment.Top;title.Margin=new Thickness(0,10,0,8);
         return Card(Stack(Text(label,10,"#A396AF",FontWeights.SemiBold),title,value,detail,Space(13),extra),new Thickness(20));
-    }
-    private void ShowSensorSetup()
-    {
-        var dialog=new Window{Title="Temperature sensors",Owner=this,Width=510,SizeToContent=SizeToContent.Height,WindowStartupLocation=WindowStartupLocation.CenterOwner,WindowStyle=WindowStyle.None,ResizeMode=ResizeMode.NoResize,Background=Brush("#15101D"),FontFamily=FontFamily,ShowInTaskbar=false};
-        var close=new Button{Content="Close",IsCancel=true,HorizontalAlignment=HorizontalAlignment.Right};
-        var open=B("LibreHardwareMonitor",()=>OpenUrl("https://github.com/LibreHardwareMonitor/LibreHardwareMonitor/releases"));
-        var refresh=B("Reconnect sensors",async()=>{await SampleAsync(true);RefreshPage("Home","PC");dialog.Close();});
-        dialog.Content=new Border{Padding=new Thickness(26),BorderBrush=Brush("#574066"),BorderThickness=new Thickness(1),Child=Stack(Text("Temperature sensors",23,weight:FontWeights.SemiBold),Space(15),Text("GPU temperatures use the installed NVIDIA driver when available. CPU, AMD GPU, fan, and pump sensors can be read from a running LibreHardwareMonitor or OpenHardwareMonitor WMI provider.",13,"#B5A5C4"),Space(14),Text("Run the monitor with its WMI provider enabled, then reconnect. Unsupported sensors stay unavailable; temperatures are never estimated.",13,"#A396AF"),Space(22),open,Space(10),refresh,Space(18),close)};
-        dialog.ShowDialog();
     }
 }

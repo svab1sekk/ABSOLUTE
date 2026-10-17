@@ -122,6 +122,6 @@ internal static class PlaybookService
                 key.SetValue(address.Name,restored,kind);
             }
         }
-        private static bool Allowed(SettingAddress address)=>Catalogs.Playbooks.Where(p=>p.Website is null).SelectMany(p=>Edits(p.Id)).Any(e=>e.Address==address);
+        private static bool Allowed(SettingAddress address)=>new[]{"competitive","balanced","focus","streaming"}.SelectMany(Edits).Any(e=>e.Address==address);
     }
 }

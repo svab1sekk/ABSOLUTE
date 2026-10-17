@@ -2,14 +2,14 @@ using System.Text.RegularExpressions;
 
 namespace Absolute.Core;
 
-public sealed record GameDefinition(string Id, string Name, string[] Processes, string Accent, int Banner, string? Executable = null);
-public sealed record PlaybookDefinition(string Id, string Name, string Detail, string Accent, int Banner, string? Website = null, string Kind = "Settings profile");
+public sealed record GameDefinition(string Id, string Name, string[] Processes, string Accent, int Banner, string? Executable = null, string? ArtworkUrl = null);
+public sealed record PlaybookDefinition(string Id, string Name, string Detail, string Accent, int Banner, string? Website = null, string Kind = "OS playbook", string Maker = "");
 public sealed record ComponentBenchmarkResult(string Component, double Score, string Unit, double Seconds, DateTimeOffset RecordedAt, string Detail);
 public sealed record GameSessionJournal(string GameId, Guid? PreviousPower, Guid? AppliedPower, int ProcessId, long ProcessStartTicks, string? PreviousPriority, string? AppliedPriority);
-public sealed record HardwarePart(string Category, string Name, IReadOnlyList<KeyValuePair<string,string>> Details);
+public sealed record HardwarePart(string Category, string Name, IReadOnlyList<KeyValuePair<string,string>> Details, string Id = "", string[]? HardwareIds = null);
 public sealed record SensorReading(string Name, string Hardware, string Type, float Value);
 public sealed record DriverDevice(string Id, string Name, string Category, string Manufacturer, string Provider, string Version, string Date, string[] HardwareIds, bool? Signed, int? ProblemCode = null);
-public sealed record DriverUpdate(string Title, string HardwareId, string Provider, string Version);
+public sealed record DriverUpdate(string Title, string HardwareId, string Provider, string Version, string UpdateId = "", int Revision = 0, bool Downloaded = false);
 public sealed record DriverSearchResult(IReadOnlyList<DriverUpdate> Updates, DateTimeOffset CheckedAt, string? Error = null);
 
 public static class HardwareNames
@@ -57,23 +57,11 @@ public static class Catalogs
 
     public static IReadOnlyList<PlaybookDefinition> Playbooks { get; } =
     [
-        new("competitive", "Competitive", "Game Mode on. Background game recording off.", "#A080CD", 0),
-        new("balanced", "Balanced", "Game Mode on. Keep Windows capture preferences.", "#7E9FCC", 1),
-        new("focus", "Focus", "Game Mode on. Toast notifications and background capture off.", "#74AAA4", 2),
-        new("streaming", "Streaming", "Game Mode on. Leave capture available for recording.", "#B49A72", 3),
-        new("atlas", "AtlasOS", "Windows OS playbook", "#9476CB", 4, "https://github.com/Atlas-OS/Atlas", "External playbook"),
-        new("revios", "ReviOS", "Windows OS playbook", "#78AC9A", 5, "https://github.com/meetrevision/playbook", "External playbook"),
-        new("ame11", "AME 11", "Ameliorated Windows playbook", "#A199AC", 6, "https://ameliorated.io/", "External playbook"),
-        new("fsosx", "FSOSX", "Custom Windows project", "#B17D87", 7, "https://fsosx.com/", "External project"),
-        new("tiny11", "tiny11builder", "Windows image builder", "#809DC2", 8, "https://github.com/ntdevlabs/tiny11builder", "OS image builder"),
-        new("microwin", "MicroWin", "Windows image customization", "#ACA3B8", 9, "https://github.com/ChrisTitusTech/winutil", "OS image builder"),
-        new("winutil", "WinUtil", "Windows tuning toolkit", "#91AF90", 10, "https://github.com/ChrisTitusTech/winutil", "Tuning toolkit"),
-        new("sophia", "Sophia Script", "Windows configuration toolkit", "#929BC8", 11, "https://github.com/farag2/Sophia-Script-for-Windows", "Tuning toolkit"),
-        new("privacy", "privacy.sexy", "Auditable Windows privacy scripts", "#A081BA", 6, "https://github.com/undergroundwires/privacy.sexy", "Tuning toolkit"),
-        new("optimizer", "Optimizer", "Windows settings utility", "#799DAF", 8, "https://github.com/hellzerg/optimizer", "Tuning toolkit"),
-        new("winslap", "WinSlap", "Windows configuration utility", "#B49A88", 9, "https://github.com/svenmauch/WinSlap", "Tuning toolkit"),
-        new("debloat", "Win11Debloat", "Windows configuration scripts", "#91A897", 10, "https://github.com/Raphire/Win11Debloat", "Tuning toolkit"),
-        new("unattended", "UnattendedWinstall", "Windows installation customization", "#9D92BE", 11, "https://github.com/memstechtips/UnattendedWinstall", "Install configuration"),
-        new("rectify", "Rectify11", "Windows desktop customization", "#86A6BE", 5, "https://github.com/Rectify11/Installer", "Customization")
+        new("atlas", "AtlasOS", "Removes selected bundled apps and adjusts Windows services and gaming defaults through an AME playbook.", "#9476CB", 0, "https://github.com/Atlas-OS/Atlas", "OS playbook", "AtlasOS team"),
+        new("revios", "ReviOS", "An AME playbook with Windows performance, privacy and app-removal settings, plus Revision's management tools.", "#78AC9A", 0, "https://github.com/meetrevision/playbook", "OS playbook", "Revision"),
+        new("ame11", "AME 11", "Ameliorates Windows 11 by removing selected bundled components and online integrations.", "#A199AC", 0, "https://ameliorated.io/", "OS playbook", "Ameliorated"),
+        new("fsosx", "FSOSX", "A custom Windows project offering its own gaming-focused Windows setup and configuration.", "#B17D87", 0, "https://fsosx.com/", "Windows project", "FSOSX"),
+        new("tiny11", "tiny11builder", "Builds a smaller Windows 11 installation image from your own Windows ISO by removing selected components.", "#809DC2", 0, "https://github.com/ntdevlabs/tiny11builder", "Image builder", "NTDEV"),
+        new("microwin", "MicroWin", "The Windows-image builder in WinUtil. Customize an installation ISO before installing Windows.", "#ACA3B8", 0, "https://github.com/ChrisTitusTech/winutil", "Image builder", "Chris Titus Tech & contributors")
     ];
 }
