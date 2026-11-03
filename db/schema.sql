@@ -1,0 +1,3 @@
+CREATE TABLE rooms (code TEXT PRIMARY KEY, state TEXT NOT NULL, version INTEGER NOT NULL DEFAULT 0, expires INTEGER NOT NULL);
+CREATE INDEX rooms_expires ON rooms(expires);
+CREATE TABLE rate_limits (key TEXT PRIMARY KEY, count INTEGER NOT NULL DEFAULT 1, expires INTEGER NOT NULL);

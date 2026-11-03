@@ -1,8 +1,4 @@
-**/bin/
-**/obj/
-.vs/
-artifacts/
-TestResults/
-*.user
-*.suo
-src/Absolute.App/Dependencies/*.exe
+node_modules/
+dist/
+.local/
+.env*
